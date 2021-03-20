@@ -1,3 +1,4 @@
+#if __linux__
 #include "kinect.h"
 
 Kinect::Kinect()
@@ -110,3 +111,4 @@ void Kinect::close() const
         k4a_device_close(m_device);
     }
 }
+#endif

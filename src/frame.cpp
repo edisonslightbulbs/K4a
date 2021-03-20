@@ -1,3 +1,4 @@
+#if __linux__
 #include "frame.h"
 
 #include "kexception.h"
@@ -105,3 +106,4 @@ void Frame::release() const
     k4a_image_release(m_xyTable);
     k4a_image_release(m_pointcloud);
 }
+#endif

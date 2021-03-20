@@ -1,3 +1,4 @@
+#if __linux__
 #ifndef KINECT_H
 #define KINECT_H
 
@@ -91,3 +92,4 @@ public:
     void close() const;
 };
 #endif /* KINECT_H */
+#endif

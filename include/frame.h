@@ -1,3 +1,4 @@
+#if __linux__
 #ifndef FRAME_H
 #define FRAME_H
 
@@ -30,3 +31,4 @@ public:
     void release() const;
 };
 #endif /* FRAME_H */
+#endif

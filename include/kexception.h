@@ -1,3 +1,4 @@
+#if __linux__
 #ifndef KINECT_EXCEPTION_H
 #define KINECT_EXCEPTION_H
 
@@ -41,3 +42,4 @@ public:
     }
 };
 #endif /* KINECT_EXCEPTION_H */
+#endif

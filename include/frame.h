@@ -3,7 +3,6 @@
 #define FRAME_H
 
 #include <k4a/k4a.h>
-#include <opencv2/opencv.hpp> // remove this
 #include <vector>
 
 #include "point.h"

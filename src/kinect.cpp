@@ -46,7 +46,7 @@ Kinect::Kinect()
     } catch (kexception& e) {
         LOG(WARNING) << kexception::startCamera();
     }
-    LOG(INFO) << "kinect initialized in: " << timer.getDuration();
+    LOG(INFO) << "kinect initialized in: " << timer.getDuration() << " ms";
 }
 void Kinect::xyLookupTable(
     const k4a_calibration_t* t_calibration, k4a_image_t t_depth)

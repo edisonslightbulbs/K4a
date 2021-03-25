@@ -96,7 +96,8 @@ Frame::Frame(k4a_device_t& t_device, const uint32_t& t_timeout,
         Point point(x, y, z);
         m_points.push_back(point);
     }
-    LOG(INFO) << "kinect image frame captured in: " << timer.getDuration();
+    LOG(INFO) << "kinect image frame captured in: " << timer.getDuration()
+              << " ms";
 }
 
 void Frame::release() const

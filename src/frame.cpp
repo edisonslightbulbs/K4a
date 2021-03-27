@@ -1,7 +1,6 @@
 #if __linux__
 #include "frame.h"
 
-#include "kexception.h"
 #include "logger.h"
 #include "point.h"
 #include "timer.h"
@@ -19,41 +18,23 @@ Frame::Frame(k4a_device_t& t_device, const uint32_t& t_timeout,
     switch (k4a_device_get_capture(t_device, &m_capture, t_timeout)) {
     case K4A_WAIT_RESULT_SUCCEEDED:
         break;
-
     case K4A_WAIT_RESULT_TIMEOUT:
-        try {
-            throw kexception();
-        } catch (kexception& e) {
-            LOG(WARNING) << kexception::captureTimeout();
-        }
-
+        throw std::runtime_error("Time out exceeded.\n");
     case K4A_WAIT_RESULT_FAILED:
-        try {
-            throw kexception();
-        } catch (kexception& e) {
-            LOG(WARNING) << kexception::captureRead();
-        }
+        throw std::runtime_error("Failed to get capture.\n");
     }
 
     /** get depth image */
     m_depth = k4a_capture_get_depth_image(m_capture);
-    try {
         if (m_depth == nullptr) {
-            throw kexception();
+            throw std::runtime_error("Failed to get depth image.\n");
         }
-    } catch (kexception& e) {
-        LOG(WARNING) << kexception::captureDepth();
-    }
 
     /* get rgb image */
     m_rgb = k4a_capture_get_color_image(m_capture);
-    try {
         if (m_rgb == nullptr) {
-            throw kexception();
+            throw std::runtime_error("Failed to get color image.\n");
         }
-    } catch (kexception& e) {
-        LOG(WARNING) << kexception::captureDepth();
-    }
 
     /* compute point cloud points using xy table */
     int depthWidth = k4a_image_get_width_pixels(m_depth);

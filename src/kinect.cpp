@@ -8,45 +8,24 @@ Kinect::Kinect()
     settings kinect;
     m_device = kinect.m_device;
     uint32_t deviceCount = k4a_device_get_installed_count();
-    try {
         if (deviceCount == 0) {
-            throw kexception();
         }
-    } catch (kexception& e) {
-        LOG(WARNING) << kexception::findDevice();
-    }
 
     /* open kinect */
-    try {
         if (K4A_RESULT_SUCCEEDED
             != k4a_device_open(K4A_DEVICE_DEFAULT, &m_device)) {
-            throw kexception();
         }
-    } catch (kexception& e) {
-        LOG(WARNING) << kexception::openDevice();
-    }
 
-    try {
         if (K4A_RESULT_SUCCEEDED
             != k4a_device_get_calibration(m_device, kinect.m_config.depth_mode,
                 kinect.m_config.color_resolution, &m_calibration)) {
-            throw kexception();
         }
-    } catch (kexception& e) {
-        LOG(WARNING) << kexception::calibrateDevice();
-    }
 
     resolveDepth();
 
-    try {
         if (K4A_RESULT_SUCCEEDED
             != k4a_device_start_cameras(m_device, &kinect.m_config)) {
-            throw kexception();
         }
-    } catch (kexception& e) {
-        LOG(WARNING) << kexception::startCamera();
-    }
-    LOG(INFO) << "kinect initialized in: " << timer.getDuration() << " ms";
 }
 void Kinect::xyLookupTable(
     const k4a_calibration_t* t_calibration, k4a_image_t t_depth)

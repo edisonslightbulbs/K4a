@@ -5,7 +5,6 @@
 #include <k4a/k4a.h>
 
 #include "frame.h"
-#include "kexception.h"
 #include "logger.h"
 #include "timer.h"
 

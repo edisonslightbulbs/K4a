@@ -2,6 +2,7 @@
 #define KINECT_H
 
 #include <k4a/k4a.h>
+#include <memory>
 
 #include "logger.h"
 #include "point.h"
@@ -34,7 +35,7 @@ struct settings {
  * @b Reference
  *    https://github.com/microsoft//tree/develop/examples/fastpointcloud */
 class Kinect {
-private:
+public:
     /**
      * xyLookupTable
      *   Pre-computes a lookup table by storing x and y depth sc-
@@ -50,22 +51,25 @@ private:
         const k4a_calibration_t* t_calibration, k4a_image_t t_depth);
 
     /**
-     * createImages
+     * create
      *   Calibrates point-cloud image resolution based on depth
      *   image resolution
      */
     void createImages();
+    void getPointCloud(const std::shared_ptr<std::vector<float>> &sptr_points);
+    void capture();
 
-public:
     k4a_device_t m_device;
     k4a_calibration_t m_calibration {};
+    k4a_transformation_t m_transformation{};
 
     k4a_image_t m_xyTable = nullptr;
-    k4a_image_t m_depth = nullptr;
+    k4a_image_t m_depthImage = nullptr;
     k4a_image_t m_pointcloud = nullptr;
+    k4a_image_t point_cloud_image = nullptr;
     int32_t m_timeout = 0;
 
-    k4a_image_t m_rgb = nullptr;
+    k4a_image_t m_rgbImage = nullptr;
     k4a_capture_t m_capture = nullptr;
     std::vector<Point> m_points;
 

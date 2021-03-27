@@ -1,16 +1,15 @@
-#if __linux__
 #ifndef KINECT_H
 #define KINECT_H
 
 #include <k4a/k4a.h>
 
-#include "frame.h"
 #include "logger.h"
+#include "point.h"
 #include "timer.h"
 
 struct settings {
     k4a_device_t m_device = nullptr;
-    static const int32_t TIMEOUT = 1000;
+    const int32_t TIMEOUT = 1000;
     k4a_device_configuration_t m_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
 
     settings()
@@ -48,11 +47,11 @@ private:
         const k4a_calibration_t* t_calibration, k4a_image_t t_depth);
 
     /**
-     * resolveDepth
+     * createImages
      *   Calibrates point-cloud image resolution based on depth
      *   image resolution
      */
-    void resolveDepth();
+    void createImages();
 
 public:
     k4a_device_t m_device;
@@ -61,6 +60,11 @@ public:
     k4a_image_t m_xyTable = nullptr;
     k4a_image_t m_depth = nullptr;
     k4a_image_t m_pointcloud = nullptr;
+    int32_t m_timeout = 0;
+
+    k4a_image_t m_rgb = nullptr;
+    k4a_capture_t m_capture = nullptr;
+    std::vector<Point> m_points;
 
     /**
      * Kinect
@@ -73,22 +77,10 @@ public:
     Kinect();
 
     /**
-     * getImage
-     *   Uses kinect to capture an image.
-     *
-     * @param t_timeout
-     *   Timeout window for capturing an image.
-     *
-     * @retval
-     *    Return an Image.
-     */
-    Frame getImage();
-
-    /**
      * close
      *   Closes connection to kinect device
      */
     void close() const;
+    void release() const;
 };
 #endif /* KINECT_H */
-#endif

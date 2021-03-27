@@ -14,9 +14,12 @@ struct settings {
 
     settings()
     {
+        m_config.color_resolution = K4A_COLOR_RESOLUTION_720P;
+        m_config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+
+        // m_config.color_resolution = K4A_COLOR_RESOLUTION_2160P;
+        // m_config.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
         m_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
-        m_config.color_resolution = K4A_COLOR_RESOLUTION_2160P;
-        m_config.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
         m_config.camera_fps = K4A_FRAMES_PER_SECOND_30;
         m_config.synchronized_images_only = true;
     }

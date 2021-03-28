@@ -199,9 +199,3 @@ void Kinect::close() const
         k4a_device_close(m_device);
     }
 }
-
-// Kinect::~Kinect()
-// {
-//     close();
-//     release();
-// }

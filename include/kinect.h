@@ -62,21 +62,21 @@ public:
     void capture();
 
     /**
-     * getFastPclImage
+     * pclImage
      *   Calibrates point-cloud image resolution based on depth
      *   image resolution.
      */
-    void getFastPclImage();
+    // void pclImage();
 
     /**
-     * getPcl
+     * pclImage
      *   Calibrates point-cloud image resolution based on depth
      *   image resolution.
      *
      * @param sptr_points
      *   "Safe global" share pointer to point cloud points.
      */
-    void getPcl(const std::shared_ptr<std::vector<float>>& sptr_points);
+    void pclImage(const std::shared_ptr<std::vector<float>>& sptr_points) const;
 
     int32_t m_timeout = 0;
     k4a_device_t m_device;

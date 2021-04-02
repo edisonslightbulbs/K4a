@@ -1,7 +1,8 @@
 #include "kinect.h"
 
-void Kinect::capture()
+void Kinect::getCapture()
 {
+    std::lock_guard<std::mutex> lck(m_mutex);
     /** capture */
     switch (k4a_device_get_capture(m_device, &m_capture, m_timeout)) {
     case K4A_WAIT_RESULT_SUCCEEDED:
@@ -25,103 +26,47 @@ void Kinect::capture()
     }
 }
 
-void Kinect::pclImage(
-    const std::shared_ptr<std::vector<float>>& sptr_points) const
+void Kinect::getPclImage()
 {
+    // std::lock_guard<std::mutex> lck (m_mutex);
     /** transform depth image to point cloud */
     if (K4A_RESULT_SUCCEEDED
         != k4a_transformation_depth_image_to_point_cloud(m_transformation,
             m_depthImage, K4A_CALIBRATION_TYPE_DEPTH, m_pclImage)) {
         throw std::runtime_error("Failed to compute point cloud.");
     }
-
-    /** get depth image */
-    int width = k4a_image_get_width_pixels(m_pclImage);
-    int height = k4a_image_get_height_pixels(m_pclImage);
-
     auto* point_cloud_image_data
         = (int16_t*)(void*)k4a_image_get_buffer(m_pclImage);
 
-    for (int i = 0; i < width * height; i++) {
-        if (point_cloud_image_data[3 * i + 2] == 0) {
-            (*sptr_points)[3 * i + 0] = 0.f;
-            (*sptr_points)[3 * i + 1] = 0.f;
-            (*sptr_points)[3 * i + 2] = 0.f;
-            continue;
+    if (m_mutex.try_lock()) {
+        for (int i = 0; i < getNumPoints(); i++) {
+            if (point_cloud_image_data[3 * i + 2] == 0) {
+                (*sptr_points)[3 * i + 0] = 0.f;
+                (*sptr_points)[3 * i + 1] = 0.f;
+                (*sptr_points)[3 * i + 2] = 0.f;
+                continue;
+            }
+            (*sptr_points)[3 * i + 0]
+                = (float)point_cloud_image_data[3 * i + 0];
+            (*sptr_points)[3 * i + 1]
+                = (float)point_cloud_image_data[3 * i + 1];
+            (*sptr_points)[3 * i + 2]
+                = (float)point_cloud_image_data[3 * i + 2];
         }
-        (*sptr_points)[3 * i + 0] = (float)point_cloud_image_data[3 * i + 0];
-        (*sptr_points)[3 * i + 1] = (float)point_cloud_image_data[3 * i + 1];
-        (*sptr_points)[3 * i + 2] = (float)point_cloud_image_data[3 * i + 2];
+        m_mutex.unlock();
     }
 }
-
-// void Kinect::pclImage()
-// {
-//     capture();
-//
-//     int depthWidth = k4a_image_get_width_pixels(m_depthImage);
-//     int depthHeight = k4a_image_get_height_pixels(m_depthImage);
-//
-//     k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
-//         m_calibration.depth_camera_calibration.resolution_width,
-//         m_calibration.depth_camera_calibration.resolution_height,
-//         m_calibration.depth_camera_calibration.resolution_width
-//             * (int)sizeof(k4a_float2_t),
-//         &m_xyTable);
-//
-//     xyLookupTable(&m_calibration, m_xyTable);
-//
-//     k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
-//         m_calibration.depth_camera_calibration.resolution_width,
-//         m_calibration.depth_camera_calibration.resolution_height,
-//         m_calibration.depth_camera_calibration.resolution_width
-//             * (int)sizeof(k4a_float3_t),
-//         &m_fastPclImage);
-//
-//     auto* depthData = (uint16_t*)(void*)k4a_image_get_buffer(m_depthImage);
-//     auto* k4aImageData =
-//     (k4a_float2_t*)(void*)k4a_image_get_buffer(m_xyTable); auto* pclData =
-//     (k4a_float3_t*)(void*)k4a_image_get_buffer(m_fastPclImage);
-//
-//     int numPoints = 0;
-//     for (int i = 0; i < depthWidth * depthHeight; i++) {
-//         if (depthData[i] != 0 && !std::isnan(k4aImageData[i].xy.x)
-//             && !std::isnan(k4aImageData[i].xy.y)) {
-//             pclData[i].xyz.x = k4aImageData[i].xy.x * (float)depthData[i];
-//             pclData[i].xyz.y = k4aImageData[i].xy.y * (float)depthData[i];
-//             pclData[i].xyz.z = (float)depthData[i];
-//             (numPoints)++;
-//         } else {
-//             pclData[i].xyz.x = nanf("");
-//             pclData[i].xyz.y = nanf("");
-//             pclData[i].xyz.z = nanf("");
-//         }
-//     }
-//
-//     int pclWidth = k4a_image_get_width_pixels(m_fastPclImage);
-//     int pclHeight = k4a_image_get_height_pixels(m_fastPclImage);
-//     auto* points =
-//     (k4a_float3_t*)(void*)k4a_image_get_buffer(m_fastPclImage);
-//
-//     for (int i = 0; i < pclWidth * pclHeight; i++) {
-//         /** filter out invalid points */
-//         if (std::isnan(points[i].xyz.x) || std::isnan(points[i].xyz.y)
-//             || std::isnan(points[i].xyz.z)) {
-//             continue;
-//         }
-//         auto x = (float)(points[i].xyz.x);
-//         auto y = (float)(points[i].xyz.y);
-//         auto z = (float)(points[i].xyz.z);
-//         Point point(x, y, z);
-//         m_points.push_back(point);
-//     }
-// }
 
 Kinect::Kinect()
 {
     DEVICE_CONF deviceConf;
     m_device = deviceConf.m_device;
     m_timeout = deviceConf.TIMEOUT;
+
+    Point maxConstraint;
+    Point minConstraint;
+    std::pair<Point, Point> threshold(minConstraint, maxConstraint);
+    sptr_threshold = std::make_shared<std::pair<Point, Point>>(threshold);
 
     /** open kinect, calibrate device, start cameras, and get transform */
     uint32_t deviceCount = k4a_device_get_installed_count();
@@ -144,7 +89,8 @@ Kinect::Kinect()
         throw std::runtime_error("Failed to start cameras.");
     }
 
-    capture();
+    /** capture images */
+    getCapture();
 
     int depthWidth = k4a_image_get_width_pixels(m_depthImage);
     int depthHeight = k4a_image_get_height_pixels(m_depthImage);
@@ -155,48 +101,64 @@ Kinect::Kinect()
             depthWidth * 3 * (int)sizeof(int16_t), &m_pclImage)) {
         throw std::runtime_error("Failed to create point cloud image.");
     }
-    /** get capture */
-    // capture();
-
-    // /** get point cloud */
-    // pclImage();
 }
-void Kinect::xyLookupTable(
-    const k4a_calibration_t* t_calibration, k4a_image_t t_depth)
+
+void Kinect::setContext(std::pair<Point, Point> threshold)
 {
-    auto* table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(t_depth);
-    int width = t_calibration->depth_camera_calibration.resolution_width;
-    int height = t_calibration->depth_camera_calibration.resolution_height;
+    if (m_mutex.try_lock()) {
+        sptr_threshold->first = threshold.first;
+        sptr_threshold->second = threshold.second;
+        m_mutex.unlock();
+    }
+}
 
-    k4a_float2_t p;
-    k4a_float3_t ray;
-    int valid;
-    for (int y = 0, idx = 0; y < height; y++) {
-        p.xy.y = (float)y;
-        for (int x = 0; x < width; x++, idx++) {
-            p.xy.x = (float)x;
+std::vector<float> Kinect::getPcl()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return *sptr_points;
+}
 
-            k4a_calibration_2d_to_3d(t_calibration, &p, 1.0F,
-                K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &ray,
-                &valid);
+int Kinect::getNumPoints() const { return NUM_POINTS; }
 
-            if (valid != 0) {
-                table_data[idx].xy.x = ray.xyz.x;
-                table_data[idx].xy.y = ray.xyz.y;
-            } else {
-                table_data[idx].xy.x = nanf("");
-                table_data[idx].xy.y = nanf("");
+void Kinect::updateContext()
+{
+    Point min;
+    Point max;
+    // std::lock_guard<std::mutex> lck (m_mutex);
+    if (m_mutex.try_lock()) {
+        min = sptr_threshold->first;
+        max = sptr_threshold->second;
+        m_mutex.unlock();
+    }
+    if (m_mutex.try_lock()) {
+        for (int i = 0; i < getNumPoints(); i++) {
+            if ((*sptr_points)[3 * i + 0] > max.m_x
+                || (*sptr_points)[3 * i + 0] < min.m_x
+                || (*sptr_points)[3 * i + 1] > max.m_y
+                || (*sptr_points)[3 * i + 1] < min.m_y
+                || (*sptr_points)[3 * i + 2] > max.m_z
+                || (*sptr_points)[3 * i + 2] < min.m_z) {
+                (*sptr_points)[3 * i + 0] = 0.f;
+                (*sptr_points)[3 * i + 1] = 0.f;
+                (*sptr_points)[3 * i + 2] = 0.f;
+                continue;
             }
         }
+        m_mutex.unlock();
     }
 }
 
 void Kinect::release() const
 {
-    k4a_image_release(m_depthImage);
-    k4a_capture_release(m_capture);
-    k4a_image_release(m_xyTable);
-    k4a_image_release(m_fastPclImage);
+    if (m_depthImage != nullptr) {
+        k4a_image_release(m_depthImage);
+    }
+    if (m_capture != nullptr) {
+        k4a_capture_release(m_capture);
+    }
+    if (m_transformation != nullptr) {
+        k4a_transformation_destroy(m_transformation);
+    }
 }
 
 void Kinect::close() const
@@ -204,4 +166,10 @@ void Kinect::close() const
     if (m_device != nullptr) {
         k4a_device_close(m_device);
     }
+}
+
+Kinect::~Kinect()
+{
+    release();
+    close();
 }

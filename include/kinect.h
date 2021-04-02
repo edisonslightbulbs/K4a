@@ -3,6 +3,7 @@
 
 #include <k4a/k4a.h>
 #include <memory>
+#include <mutex>
 
 #include "logger.h"
 #include "point.h"
@@ -39,56 +40,37 @@ struct DEVICE_CONF {
  */
 class Kinect {
 
-private:
 public:
-    /**
-     * xyLookupTable
-     *   Pre-computes a lookup table by storing x and y depth
-     *   scale factors for every pixel.
-     *
-     * @param t_calibration
-     *   Calibration for the kinect device in question.
-     *
-     * @param t_depth
-     *   Depth map captured by the kinect device.
-     */
-    static void xyLookupTable(
-        const k4a_calibration_t* t_calibration, k4a_image_t t_depth);
-
     /**
      * capture
      *   Capture depth and color images using the kinect device.
      */
-    void capture();
+    void getCapture();
 
     /**
-     * pclImage
-     *   Calibrates point-cloud image resolution based on depth
-     *   image resolution.
-     */
-    // void pclImage();
-
-    /**
-     * pclImage
+     * getPclImage
      *   Calibrates point-cloud image resolution based on depth
      *   image resolution.
      *
      * @param sptr_points
      *   "Safe global" share pointer to point cloud points.
      */
-    void pclImage(const std::shared_ptr<std::vector<float>>& sptr_points) const;
+    void getPclImage();
 
     int32_t m_timeout = 0;
     k4a_device_t m_device;
-    k4a_image_t m_xyTable = nullptr;
     k4a_image_t m_rgbImage = nullptr;
     k4a_capture_t m_capture = nullptr;
     k4a_image_t m_depthImage = nullptr;
-    k4a_image_t m_fastPclImage = nullptr;
     k4a_image_t m_pclImage = nullptr;
     k4a_calibration_t m_calibration {};
     k4a_transformation_t m_transformation {};
-    std::vector<Point> m_points;
+
+    std::mutex m_mutex;
+    const int NUM_POINTS = 640 * 576;
+    std::shared_ptr<std::vector<float>> sptr_points
+        = std::make_shared<std::vector<float>>(NUM_POINTS * 3);
+    std::shared_ptr<std::pair<Point, Point>> sptr_threshold;
 
     /**
      * close
@@ -108,6 +90,14 @@ public:
      */
     Kinect();
 
-    //~Kinect();
+    ~Kinect();
+
+    void setContext(std::pair<Point, Point> threshold);
+
+    void updateContext();
+
+    std::vector<float> getPcl();
+
+    int getNumPoints() const;
 };
 #endif /* KINECT_H */

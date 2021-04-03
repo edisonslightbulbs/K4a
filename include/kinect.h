@@ -118,6 +118,12 @@ public:
     void defineContext(std::pair<Point, Point> threshold);
 
     /**
+     * getFrame
+     *   Capture and transform next point cloud frame
+     */
+    void getFrame();
+
+    /**
      * close
      *   Closes connection to device.
      */

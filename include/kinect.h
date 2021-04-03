@@ -1,9 +1,12 @@
 #ifndef KINECT_H
 #define KINECT_H
 
+#include <atomic>
+#include <cfloat>
 #include <k4a/k4a.h>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 
 #include "logger.h"
 #include "point.h"
@@ -57,6 +60,8 @@ public:
      */
     void getPclImage();
 
+    std::mutex m_mutex;
+    std::shared_mutex s_mutex;
     int32_t m_timeout = 0;
     k4a_device_t m_device;
     k4a_image_t m_rgbImage = nullptr;
@@ -66,11 +71,19 @@ public:
     k4a_calibration_t m_calibration {};
     k4a_transformation_t m_transformation {};
 
-    std::mutex m_mutex;
-    const int NUM_POINTS = 640 * 576;
-    std::shared_ptr<std::vector<float>> sptr_points
-        = std::make_shared<std::vector<float>>(NUM_POINTS * 3);
-    std::shared_ptr<std::pair<Point, Point>> sptr_threshold;
+    /** tabletop interaction context boundary */
+    Point pclLowerBoundary;
+    Point pclUpperBoundary;
+
+    int numPoints = 640 * 576;
+
+    /** segmented context */
+    std::shared_ptr<std::vector<float>> sptr_context
+        = std::make_shared<std::vector<float>>(numPoints * 3);
+
+    /** tabletop environment */
+    std::shared_ptr<std::vector<float>> sptr_pcl
+        = std::make_shared<std::vector<float>>(numPoints * 3);
 
     /**
      * close
@@ -94,10 +107,10 @@ public:
 
     void setContext(std::pair<Point, Point> threshold);
 
-    void updateContext();
+    std::shared_ptr<std::vector<float>> getContextPcl();
 
-    std::vector<float> getPcl();
+    std::shared_ptr<std::vector<float>> getPcl();
 
-    int getNumPoints() const;
+    int getNumPoints();
 };
 #endif /* KINECT_H */

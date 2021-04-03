@@ -2,10 +2,6 @@
 
 void Kinect::getCapture()
 {
-    /** block threads from accessing resources during Capture */
-    std::lock_guard<std::mutex> lck(m_mutex);
-
-    /** capture */
     switch (k4a_device_get_capture(m_device, &m_capture, m_timeout)) {
     case K4A_WAIT_RESULT_SUCCEEDED:
         break;
@@ -30,10 +26,6 @@ void Kinect::getCapture()
 
 void Kinect::transformDepthImageToPcl()
 {
-    /** block threads from accessing resources during transformation */
-    std::lock_guard<std::mutex> lck(m_mutex);
-
-    /** transform depth image to point cloud */
     if (K4A_RESULT_SUCCEEDED
         != k4a_transformation_depth_image_to_point_cloud(m_transformation,
             m_depthImage, K4A_CALIBRATION_TYPE_DEPTH, m_pclImage)) {
@@ -79,6 +71,15 @@ void Kinect::transformDepthImageToPcl()
     }
     /** ... else, default to filtered point cloud */
     *sptr_context = runningPcl;
+}
+
+void Kinect::getFrame()
+{
+    /** block threads from accessing resources
+     *  during Capture and transformation */
+    std::lock_guard<std::mutex> lck(m_mutex);
+    getCapture();
+    transformDepthImageToPcl();
 }
 
 std::shared_ptr<std::vector<float>> Kinect::getPcl()

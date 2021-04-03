@@ -2,7 +2,7 @@
 
 void Kinect::getCapture()
 {
-    /** block threads from accessing resources during update */
+    /** block threads from accessing resources during Capture */
     std::lock_guard<std::mutex> lck(m_mutex);
 
     /** capture */
@@ -28,9 +28,9 @@ void Kinect::getCapture()
     }
 }
 
-void Kinect::getPclImage()
+void Kinect::transformDepthImageToPcl()
 {
-    /** block threads from accessing resources during update */
+    /** block threads from accessing resources during transformation */
     std::lock_guard<std::mutex> lck(m_mutex);
 
     /** transform depth image to point cloud */
@@ -71,32 +71,35 @@ void Kinect::getPclImage()
         runningPcl[3 * i + 2] = (float)point_cloud_image_data[3 * i + 2];
     }
 
-    /** iff context boundaries are undefined, let context = raw point cloud  */
+    /** iff context boundaries are undefined,
+     *  let context = unfiltered point cloud  */
     if (pclUpperBoundary.m_z == __FLT_MAX__
         || pclLowerBoundary.m_z == __FLT_MIN__) {
         *sptr_context = *sptr_pcl;
     }
-    /** ... else, using filtered point cloud */
+    /** ... else, default to filtered point cloud */
     *sptr_context = runningPcl;
 }
 
 std::shared_ptr<std::vector<float>> Kinect::getPcl()
 {
-    /** allow multiple threads to read shared resource */
+    /** allow multiple threads to read unfiltered point cloud */
     std::shared_lock lock(s_mutex);
     return sptr_pcl;
 }
 
-std::shared_ptr<std::vector<float>> Kinect::getContextPcl()
+std::shared_ptr<std::vector<float>> Kinect::getContext()
 {
-    /** allow multiple threads to read shared resource */
+    /** allow multiple threads to read
+     *  filtered interaction context point cloud */
     std::shared_lock lock(s_mutex);
     return sptr_context;
 }
 
-void Kinect::setContext(std::pair<Point, Point> threshold)
+void Kinect::defineContext(std::pair<Point, Point> threshold)
 {
-    /** dis-allow threads from accessing resources during update */
+    /** dis-allow threads from accessing resources
+     *  during interaction context definition */
     std::unique_lock lock(s_mutex);
     pclLowerBoundary = threshold.first;
     pclUpperBoundary = threshold.second;
@@ -104,7 +107,7 @@ void Kinect::setContext(std::pair<Point, Point> threshold)
 
 int Kinect::getNumPoints()
 {
-    /** allow multiple threads to read shared resource */
+    /** allow multiple threads to read image resolution */
     std::shared_lock lock(s_mutex);
     return numPoints;
 }
@@ -141,7 +144,7 @@ Kinect::Kinect()
     m_device = deviceConf.m_device;
     m_timeout = deviceConf.TIMEOUT;
 
-    /** initially set boundless tabletop context */
+    /** initialize boundless interaction context */
     pclLowerBoundary = Point(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
     pclUpperBoundary = Point(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
 

@@ -4,13 +4,10 @@
 #include <atomic>
 #include <cfloat>
 #include <k4a/k4a.h>
-#include <memory>
 #include <mutex>
 #include <shared_mutex>
 
-#include "logger.h"
 #include "point.h"
-#include "timer.h"
 
 /**
  * @struct DEVICE_CONF
@@ -38,79 +35,110 @@ struct DEVICE_CONF {
 /**
  * @file kinect.h
  *    Kinect device.
- * @b Reference
- *    https://github.com/microsoft//tree/develop/examples/fastpointcloud
  */
 class Kinect {
 
 public:
-    /**
-     * capture
-     *   Capture depth and color images using the kinect device.
-     */
-    void getCapture();
-
-    /**
-     * getPclImage
-     *   Calibrates point-cloud image resolution based on depth
-     *   image resolution.
-     *
-     * @param sptr_points
-     *   "Safe global" share pointer to point cloud points.
-     */
-    void getPclImage();
-
+    /** thread guards */
     std::mutex m_mutex;
     std::shared_mutex s_mutex;
+
+    /** image resolution */
+    int numPoints = 640 * 576;
+
+    /** initialize device config */
     int32_t m_timeout = 0;
     k4a_device_t m_device;
     k4a_image_t m_rgbImage = nullptr;
+    k4a_image_t m_pclImage = nullptr;
     k4a_capture_t m_capture = nullptr;
     k4a_image_t m_depthImage = nullptr;
-    k4a_image_t m_pclImage = nullptr;
     k4a_calibration_t m_calibration {};
     k4a_transformation_t m_transformation {};
 
-    /** tabletop interaction context boundary */
+    /** interaction context boundary */
     Point pclLowerBoundary;
     Point pclUpperBoundary;
 
-    int numPoints = 640 * 576;
-
-    /** segmented context */
+    /** context pcl */
     std::shared_ptr<std::vector<float>> sptr_context
         = std::make_shared<std::vector<float>>(numPoints * 3);
 
-    /** tabletop environment */
+    /** tabletop environment pcl */
     std::shared_ptr<std::vector<float>> sptr_pcl
         = std::make_shared<std::vector<float>>(numPoints * 3);
 
     /**
+     * capture
+     *   Capture depth and color images.
+     */
+    void getCapture();
+
+    /**
+     * transformDepthImageToPcl
+     *   Calibrates point cloud image resolution.
+     *
+     * @param sptr_points
+     *   "Safe global" share pointer to point cloud points.
+     */
+    void transformDepthImageToPcl();
+
+    /**
+     * getNumPoints
+     *   Retrieve point cloud image resolution.
+     */
+    int getNumPoints();
+
+    /**
+     * getPcl
+     *   Retrieve raw/unprocessed point cloud points.
+     *
+     *  @retval
+     *     Point cloud corresponding to interaction context.
+     */
+    std::shared_ptr<std::vector<float>> getPcl();
+
+    /**
+     * getContext
+     *   Retrieve interaction context point cloud.
+     *
+     *  @retval
+     *     Point cloud corresponding to interaction context.
+     */
+    std::shared_ptr<std::vector<float>> getContext();
+
+    /**
+     * defineContext
+     *   Define interaction context boundary.
+     *
+     *  @param threshold
+     *    Pair of points { min, max } corresponding to the
+     *    lower-bound and lower-bound of interaction context.
+     */
+    void defineContext(std::pair<Point, Point> threshold);
+
+    /**
      * close
-     *   Closes connection to kinect device.
+     *   Closes connection to device.
      */
     void close() const;
 
     /**
      * close
-     *   Releases kinect's  capture resources.
+     *   Releases device resources.
      */
     void release() const;
 
     /**
      * Kinect
-     *   Kinect device constructor.
+     *   Initialize kinect device.
      */
     Kinect();
 
+    /**
+     * Kinect
+     *   De-initialize kinect device.
+     */
     ~Kinect();
-
-    void setContext(std::pair<Point, Point> threshold);
-
-    std::shared_ptr<std::vector<float>> getContextPcl();
-
-    std::shared_ptr<std::vector<float>> getPcl();
-
-    int getNumPoints();
 };
 #endif /* KINECT_H */

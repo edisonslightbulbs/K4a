@@ -2,7 +2,9 @@
 
 void Kinect::getCapture()
 {
+    /** block threads from accessing resources during update */
     std::lock_guard<std::mutex> lck(m_mutex);
+
     /** capture */
     switch (k4a_device_get_capture(m_device, &m_capture, m_timeout)) {
     case K4A_WAIT_RESULT_SUCCEEDED:
@@ -28,7 +30,9 @@ void Kinect::getCapture()
 
 void Kinect::getPclImage()
 {
-    // std::lock_guard<std::mutex> lck (m_mutex);
+    /** block threads from accessing resources during update */
+    std::lock_guard<std::mutex> lck(m_mutex);
+
     /** transform depth image to point cloud */
     if (K4A_RESULT_SUCCEEDED
         != k4a_transformation_depth_image_to_point_cloud(m_transformation,
@@ -38,114 +42,71 @@ void Kinect::getPclImage()
     auto* point_cloud_image_data
         = (int16_t*)(void*)k4a_image_get_buffer(m_pclImage);
 
-    if (m_mutex.try_lock()) {
-        for (int i = 0; i < getNumPoints(); i++) {
-            if (point_cloud_image_data[3 * i + 2] == 0) {
-                (*sptr_points)[3 * i + 0] = 0.f;
-                (*sptr_points)[3 * i + 1] = 0.f;
-                (*sptr_points)[3 * i + 2] = 0.f;
-                continue;
-            }
-            (*sptr_points)[3 * i + 0]
-                = (float)point_cloud_image_data[3 * i + 0];
-            (*sptr_points)[3 * i + 1]
-                = (float)point_cloud_image_data[3 * i + 1];
-            (*sptr_points)[3 * i + 2]
-                = (float)point_cloud_image_data[3 * i + 2];
+    /** iff context boundaries undefined */
+    std::vector<float> runningPcl(numPoints * 3);
+    for (int i = 0; i < getNumPoints(); i++) {
+        if (point_cloud_image_data[3 * i + 0] == 0
+            || point_cloud_image_data[3 * i + 1] == 0
+            || point_cloud_image_data[3 * i + 2] == 0) {
+            (*sptr_pcl)[3 * i + 0] = 0.0f;
+            (*sptr_pcl)[3 * i + 1] = 0.0f;
+            (*sptr_pcl)[3 * i + 2] = 0.0f;
+            continue;
         }
-        m_mutex.unlock();
+        (*sptr_pcl)[3 * i + 0] = (float)point_cloud_image_data[3 * i + 0];
+        (*sptr_pcl)[3 * i + 1] = (float)point_cloud_image_data[3 * i + 1];
+        (*sptr_pcl)[3 * i + 2] = (float)point_cloud_image_data[3 * i + 2];
+
+        if ((float)point_cloud_image_data[3 * i + 0] > pclUpperBoundary.m_x
+            || (float)point_cloud_image_data[3 * i + 0] < pclLowerBoundary.m_x
+            || (float)point_cloud_image_data[3 * i + 1] > pclUpperBoundary.m_y
+            || (float)point_cloud_image_data[3 * i + 1] < pclLowerBoundary.m_y
+            || (float)point_cloud_image_data[3 * i + 2] > pclUpperBoundary.m_z
+            || (float)point_cloud_image_data[3 * i + 2]
+                < pclLowerBoundary.m_z) {
+            continue;
+        }
+        runningPcl[3 * i + 0] = (float)point_cloud_image_data[3 * i + 0];
+        runningPcl[3 * i + 1] = (float)point_cloud_image_data[3 * i + 1];
+        runningPcl[3 * i + 2] = (float)point_cloud_image_data[3 * i + 2];
     }
+
+    /** iff context boundaries are undefined, let context = raw point cloud  */
+    if (pclUpperBoundary.m_z == __FLT_MAX__
+        || pclLowerBoundary.m_z == __FLT_MIN__) {
+        *sptr_context = *sptr_pcl;
+    }
+    /** ... else, using filtered point cloud */
+    *sptr_context = runningPcl;
 }
 
-Kinect::Kinect()
+std::shared_ptr<std::vector<float>> Kinect::getPcl()
 {
-    DEVICE_CONF deviceConf;
-    m_device = deviceConf.m_device;
-    m_timeout = deviceConf.TIMEOUT;
+    /** allow multiple threads to read shared resource */
+    std::shared_lock lock(s_mutex);
+    return sptr_pcl;
+}
 
-    Point maxConstraint;
-    Point minConstraint;
-    std::pair<Point, Point> threshold(minConstraint, maxConstraint);
-    sptr_threshold = std::make_shared<std::pair<Point, Point>>(threshold);
-
-    /** open kinect, calibrate device, start cameras, and get transform */
-    uint32_t deviceCount = k4a_device_get_installed_count();
-    if (deviceCount == 0) {
-        throw std::runtime_error("No device found.");
-    }
-    if (K4A_RESULT_SUCCEEDED
-        != k4a_device_open(K4A_DEVICE_DEFAULT, &m_device)) {
-        throw std::runtime_error("Unable to open device.");
-    }
-    if (K4A_RESULT_SUCCEEDED
-        != k4a_device_get_calibration(m_device, deviceConf.m_config.depth_mode,
-            deviceConf.m_config.color_resolution, &m_calibration)) {
-        throw std::runtime_error("Unable to get calibration.");
-    }
-    m_transformation = k4a_transformation_create(&m_calibration);
-
-    if (K4A_RESULT_SUCCEEDED
-        != k4a_device_start_cameras(m_device, &deviceConf.m_config)) {
-        throw std::runtime_error("Failed to start cameras.");
-    }
-
-    /** capture images */
-    getCapture();
-
-    int depthWidth = k4a_image_get_width_pixels(m_depthImage);
-    int depthHeight = k4a_image_get_height_pixels(m_depthImage);
-
-    /** create point cloud image */
-    if (K4A_RESULT_SUCCEEDED
-        != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, depthWidth, depthHeight,
-            depthWidth * 3 * (int)sizeof(int16_t), &m_pclImage)) {
-        throw std::runtime_error("Failed to create point cloud image.");
-    }
+std::shared_ptr<std::vector<float>> Kinect::getContextPcl()
+{
+    /** allow multiple threads to read shared resource */
+    std::shared_lock lock(s_mutex);
+    return sptr_context;
 }
 
 void Kinect::setContext(std::pair<Point, Point> threshold)
 {
-    if (m_mutex.try_lock()) {
-        sptr_threshold->first = threshold.first;
-        sptr_threshold->second = threshold.second;
-        m_mutex.unlock();
-    }
+    /** dis-allow threads from accessing resources during update */
+    std::unique_lock lock(s_mutex);
+    pclLowerBoundary = threshold.first;
+    pclUpperBoundary = threshold.second;
 }
 
-std::vector<float> Kinect::getPcl()
+int Kinect::getNumPoints()
 {
-    std::lock_guard<std::mutex> lck(m_mutex);
-    return *sptr_points;
-}
-
-int Kinect::getNumPoints() const { return NUM_POINTS; }
-
-void Kinect::updateContext()
-{
-    Point min;
-    Point max;
-    // std::lock_guard<std::mutex> lck (m_mutex);
-    if (m_mutex.try_lock()) {
-        min = sptr_threshold->first;
-        max = sptr_threshold->second;
-        m_mutex.unlock();
-    }
-    if (m_mutex.try_lock()) {
-        for (int i = 0; i < getNumPoints(); i++) {
-            if ((*sptr_points)[3 * i + 0] > max.m_x
-                || (*sptr_points)[3 * i + 0] < min.m_x
-                || (*sptr_points)[3 * i + 1] > max.m_y
-                || (*sptr_points)[3 * i + 1] < min.m_y
-                || (*sptr_points)[3 * i + 2] > max.m_z
-                || (*sptr_points)[3 * i + 2] < min.m_z) {
-                (*sptr_points)[3 * i + 0] = 0.f;
-                (*sptr_points)[3 * i + 1] = 0.f;
-                (*sptr_points)[3 * i + 2] = 0.f;
-                continue;
-            }
-        }
-        m_mutex.unlock();
-    }
+    /** allow multiple threads to read shared resource */
+    std::shared_lock lock(s_mutex);
+    return numPoints;
 }
 
 void Kinect::release() const
@@ -172,4 +133,48 @@ Kinect::~Kinect()
 {
     release();
     close();
+}
+Kinect::Kinect()
+{
+    /** setup kinect  */
+    DEVICE_CONF deviceConf;
+    m_device = deviceConf.m_device;
+    m_timeout = deviceConf.TIMEOUT;
+
+    /** initially set boundless tabletop context */
+    pclLowerBoundary = Point(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
+    pclUpperBoundary = Point(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
+
+    /** open kinect, calibrate device, start cameras, and get transform */
+    uint32_t deviceCount = k4a_device_get_installed_count();
+    if (deviceCount == 0) {
+        throw std::runtime_error("No device found.");
+    }
+    if (K4A_RESULT_SUCCEEDED
+        != k4a_device_open(K4A_DEVICE_DEFAULT, &m_device)) {
+        throw std::runtime_error("Unable to open device.");
+    }
+    if (K4A_RESULT_SUCCEEDED
+        != k4a_device_get_calibration(m_device, deviceConf.m_config.depth_mode,
+            deviceConf.m_config.color_resolution, &m_calibration)) {
+        throw std::runtime_error("Unable to get calibration.");
+    }
+    m_transformation = k4a_transformation_create(&m_calibration);
+
+    if (K4A_RESULT_SUCCEEDED
+        != k4a_device_start_cameras(m_device, &deviceConf.m_config)) {
+        throw std::runtime_error("Failed to start cameras.");
+    }
+
+    /** capture images */
+    getCapture();
+
+    /** create point cloud image */
+    int depthWidth = k4a_image_get_width_pixels(m_depthImage);
+    int depthHeight = k4a_image_get_height_pixels(m_depthImage);
+    if (K4A_RESULT_SUCCEEDED
+        != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, depthWidth, depthHeight,
+            depthWidth * 3 * (int)sizeof(int16_t), &m_pclImage)) {
+        throw std::runtime_error("Failed to create point cloud image.");
+    }
 }

@@ -1,5 +1,8 @@
 #include "kinect.h"
 
+extern std::mutex SYNCHRONIZE;
+extern std::shared_ptr<bool> RUN_SYSTEM;
+
 void Kinect::getCapture()
 {
     switch (k4a_device_get_capture(m_device, &m_capture, m_timeout)) {

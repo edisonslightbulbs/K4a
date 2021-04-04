@@ -9,21 +9,35 @@ void Kinect::getCapture()
     case K4A_WAIT_RESULT_SUCCEEDED:
         break;
     case K4A_WAIT_RESULT_TIMEOUT:
+        close();
         throw std::runtime_error("Capture timed out!");
     case K4A_WAIT_RESULT_FAILED:
+        close();
         throw std::runtime_error("Failed to capture!");
-    }
-
-    /** capture depth image */
-    m_depthImage = k4a_capture_get_depth_image(m_capture);
-    if (m_depthImage == nullptr) {
-        throw std::runtime_error("Failed to get depth image!");
     }
 
     /** capture colour image */
     m_rgbImage = k4a_capture_get_color_image(m_capture);
     if (m_rgbImage == nullptr) {
+        cleanExit();
         throw std::runtime_error("Failed to get color image!");
+    }
+
+    /** capture depth image */
+    m_depthImage = k4a_capture_get_depth_image(m_capture);
+    if (m_depthImage == nullptr) {
+        cleanExit();
+        throw std::runtime_error("Failed to get depth image!");
+    }
+    /** create point cloud image */
+    int depthWidth = k4a_image_get_width_pixels(m_depthImage);
+    int depthHeight = k4a_image_get_height_pixels(m_depthImage);
+
+    if (K4A_RESULT_SUCCEEDED
+        != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, depthWidth, depthHeight,
+            depthWidth * 3 * (int)sizeof(int16_t), &m_pclImage)) {
+        cleanExit();
+        throw std::runtime_error("Failed to create point cloud image!");
     }
 }
 
@@ -83,6 +97,7 @@ void Kinect::buildPcl()
     std::lock_guard<std::mutex> lck(m_mutex);
     getCapture();
     transformDepthImageToPcl();
+    releaseImages();
 }
 
 std::shared_ptr<std::vector<float>> Kinect::getPcl()
@@ -115,14 +130,26 @@ int Kinect::getNumPoints()
     return numPoints;
 }
 
-void Kinect::release() const
+void Kinect::releaseImages() const
 {
+    if (m_rgbImage != nullptr) {
+        k4a_image_release(m_rgbImage);
+    }
     if (m_depthImage != nullptr) {
         k4a_image_release(m_depthImage);
+    }
+    if (m_pclImage != nullptr) {
+        k4a_image_release(m_pclImage);
     }
     if (m_capture != nullptr) {
         k4a_capture_release(m_capture);
     }
+}
+
+void Kinect::release() const
+{
+    releaseImages();
+
     if (m_transformation != nullptr) {
         k4a_transformation_destroy(m_transformation);
     }
@@ -135,11 +162,13 @@ void Kinect::close() const
     }
 }
 
-Kinect::~Kinect()
+void Kinect::cleanExit() const
 {
     release();
     close();
 }
+
+Kinect::~Kinect() { cleanExit(); }
 Kinect::Kinect()
 {
     /** setup kinect  */
@@ -172,15 +201,6 @@ Kinect::Kinect()
         throw std::runtime_error("Failed to start cameras!");
     }
 
-    /** capture images */
+    /** capture dry run */
     getCapture();
-
-    /** create point cloud image */
-    int depthWidth = k4a_image_get_width_pixels(m_depthImage);
-    int depthHeight = k4a_image_get_height_pixels(m_depthImage);
-    if (K4A_RESULT_SUCCEEDED
-        != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, depthWidth, depthHeight,
-            depthWidth * 3 * (int)sizeof(int16_t), &m_pclImage)) {
-        throw std::runtime_error("Failed to create point cloud image!");
-    }
 }

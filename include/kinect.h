@@ -146,9 +146,5 @@ public:
      *   De-initialize kinect device.
      */
     ~Kinect();
-
-    void releaseImages() const;
-
-    void cleanExit() const;
 };
 #endif /* KINECT_H */

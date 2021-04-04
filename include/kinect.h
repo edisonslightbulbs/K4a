@@ -118,10 +118,10 @@ public:
     void defineContext(std::pair<Point, Point> threshold);
 
     /**
-     * getFrame
+     * buildPcl
      *   Capture and transform next point cloud frame
      */
-    void getFrame();
+    void buildPcl();
 
     /**
      * close

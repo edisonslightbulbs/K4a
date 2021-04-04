@@ -9,24 +9,20 @@ void Kinect::getCapture()
     case K4A_WAIT_RESULT_SUCCEEDED:
         break;
     case K4A_WAIT_RESULT_TIMEOUT:
-        close();
         throw std::runtime_error("Capture timed out!");
     case K4A_WAIT_RESULT_FAILED:
-        close();
         throw std::runtime_error("Failed to capture!");
     }
 
     /** capture colour image */
     m_rgbImage = k4a_capture_get_color_image(m_capture);
     if (m_rgbImage == nullptr) {
-        cleanExit();
         throw std::runtime_error("Failed to get color image!");
     }
 
     /** capture depth image */
     m_depthImage = k4a_capture_get_depth_image(m_capture);
     if (m_depthImage == nullptr) {
-        cleanExit();
         throw std::runtime_error("Failed to get depth image!");
     }
     /** create point cloud image */
@@ -36,7 +32,6 @@ void Kinect::getCapture()
     if (K4A_RESULT_SUCCEEDED
         != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, depthWidth, depthHeight,
             depthWidth * 3 * (int)sizeof(int16_t), &m_pclImage)) {
-        cleanExit();
         throw std::runtime_error("Failed to create point cloud image!");
     }
 }
@@ -97,7 +92,7 @@ void Kinect::buildPcl()
     std::lock_guard<std::mutex> lck(m_mutex);
     getCapture();
     transformDepthImageToPcl();
-    releaseImages();
+    release();
 }
 
 std::shared_ptr<std::vector<float>> Kinect::getPcl()
@@ -130,7 +125,7 @@ int Kinect::getNumPoints()
     return numPoints;
 }
 
-void Kinect::releaseImages() const
+void Kinect::release() const
 {
     if (m_rgbImage != nullptr) {
         k4a_image_release(m_rgbImage);
@@ -146,29 +141,18 @@ void Kinect::releaseImages() const
     }
 }
 
-void Kinect::release() const
+void Kinect::close() const
 {
-    releaseImages();
-
     if (m_transformation != nullptr) {
         k4a_transformation_destroy(m_transformation);
     }
-}
-
-void Kinect::close() const
-{
     if (m_device != nullptr) {
         k4a_device_close(m_device);
     }
 }
 
-void Kinect::cleanExit() const
-{
-    release();
-    close();
-}
+Kinect::~Kinect() { close(); }
 
-Kinect::~Kinect() { cleanExit(); }
 Kinect::Kinect()
 {
     /** setup kinect  */
@@ -194,12 +178,11 @@ Kinect::Kinect()
             deviceConf.m_config.color_resolution, &m_calibration)) {
         throw std::runtime_error("Unable to calibrate!");
     }
-    m_transformation = k4a_transformation_create(&m_calibration);
-
     if (K4A_RESULT_SUCCEEDED
         != k4a_device_start_cameras(m_device, &deviceConf.m_config)) {
         throw std::runtime_error("Failed to start cameras!");
     }
+    m_transformation = k4a_transformation_create(&m_calibration);
 
     /** capture dry run */
     getCapture();

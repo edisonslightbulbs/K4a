@@ -85,7 +85,7 @@ void Kinect::transformDepthImageToPcl()
     }
 }
 
-void Kinect::buildPcl()
+void Kinect::capturePcl()
 {
     /** block threads from accessing resources
      *  during capture and transformation */

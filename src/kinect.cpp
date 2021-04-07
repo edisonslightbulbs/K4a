@@ -25,6 +25,7 @@ void Kinect::getCapture()
     if (m_depthImage == nullptr) {
         throw std::runtime_error("Failed to get depth image!");
     }
+
     /** create point cloud image */
     int depthWidth = k4a_image_get_width_pixels(m_depthImage);
     int depthHeight = k4a_image_get_height_pixels(m_depthImage);
@@ -36,13 +37,8 @@ void Kinect::getCapture()
     }
 }
 
-void Kinect::transformDepthImageToPcl()
+void Kinect::defineContext()
 {
-    if (K4A_RESULT_SUCCEEDED
-        != k4a_transformation_depth_image_to_point_cloud(m_transform,
-            m_depthImage, K4A_CALIBRATION_TYPE_DEPTH, m_pclImage)) {
-        throw std::runtime_error("Failed to compute point cloud.");
-    }
     auto* point_cloud_image_data
         = (int16_t*)(void*)k4a_image_get_buffer(m_pclImage);
 
@@ -85,13 +81,23 @@ void Kinect::transformDepthImageToPcl()
     }
 }
 
+void Kinect::transform()
+{
+    if (K4A_RESULT_SUCCEEDED
+        != k4a_transformation_depth_image_to_point_cloud(m_transform,
+            m_depthImage, K4A_CALIBRATION_TYPE_DEPTH, m_pclImage)) {
+        throw std::runtime_error("Failed to compute point cloud.");
+    }
+    defineContext();
+}
+
 void Kinect::capturePcl()
 {
     /** block threads from accessing resources
      *  during capture and transformation */
     std::lock_guard<std::mutex> lck(m_mutex);
     getCapture();
-    transformDepthImageToPcl();
+    transform();
     release();
 }
 
@@ -109,7 +115,7 @@ std::shared_ptr<std::vector<float>> Kinect::getContext()
     return sptr_context;
 }
 
-void Kinect::defineContext(std::pair<Point, Point> threshold)
+void Kinect::setContextBounds(std::pair<Point, Point> threshold)
 {
     /** dis-allow threads from accessing
      *  resources during context definition */

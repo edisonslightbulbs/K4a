@@ -8,15 +8,16 @@
 
 #include "ply.h"
 
-struct color_point_t {
+struct rgbPoint {
     int16_t xyz[3];
     uint8_t rgb[3];
 };
 
-void ply::write(const k4a_image_t& pclImage, const k4a_image_t& rgbImage,
+void ply::write(const Point& lowerBound, const Point& upperBound,
+    const k4a_image_t& pclImage, const k4a_image_t& rgbImage,
     const std::string& file)
 {
-    std::vector<color_point_t> points;
+    std::vector<rgbPoint> points;
 
     int width = k4a_image_get_width_pixels(pclImage);
     int height = k4a_image_get_height_pixels(rgbImage);
@@ -26,11 +27,20 @@ void ply::write(const k4a_image_t& pclImage, const k4a_image_t& rgbImage,
     uint8_t* color_image_data = k4a_image_get_buffer(rgbImage);
 
     for (int i = 0; i < width * height; i++) {
-        color_point_t point {};
+        rgbPoint point {};
         point.xyz[0] = point_cloud_image_data[3 * i + 0];
         point.xyz[1] = point_cloud_image_data[3 * i + 1];
         point.xyz[2] = point_cloud_image_data[3 * i + 2];
         if (point.xyz[2] == 0) {
+            continue;
+        }
+
+        if ((float)point_cloud_image_data[3 * i + 0] > upperBound.m_x
+            || (float)point_cloud_image_data[3 * i + 0] < lowerBound.m_x
+            || (float)point_cloud_image_data[3 * i + 1] > upperBound.m_y
+            || (float)point_cloud_image_data[3 * i + 1] < lowerBound.m_y
+            || (float)point_cloud_image_data[3 * i + 2] > upperBound.m_z
+            || (float)point_cloud_image_data[3 * i + 2] < lowerBound.m_z) {
             continue;
         }
 

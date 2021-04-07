@@ -78,13 +78,13 @@ public:
     void getCapture();
 
     /**
-     * transformDepthImageToPcl
+     * transform
      *   Calibrates point cloud image resolution.
      *
      * @param sptr_points
      *   "Safe global" share pointer to point cloud points.
      */
-    void transformDepthImageToPcl();
+    void transform();
 
     /**
      * getNumPoints
@@ -111,14 +111,14 @@ public:
     std::shared_ptr<std::vector<float>> getContext();
 
     /**
-     * defineContext
+     * setContextBounds
      *   Define interaction context boundary.
      *
      *  @param threshold
      *    Pair of points { min, max } corresponding to the
      *    lower-bound and lower-bound of interaction context.
      */
-    void defineContext(std::pair<Point, Point> threshold);
+    void setContextBounds(std::pair<Point, Point> threshold);
 
     /**
      * capturePcl
@@ -149,5 +149,7 @@ public:
      *   De-initialize kinect device.
      */
     ~Kinect();
+
+    void defineContext();
 };
 #endif /* KINECT_H */

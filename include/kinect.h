@@ -54,10 +54,9 @@ public:
     k4a_capture_t m_capture = nullptr;
     k4a_image_t m_depthImage = nullptr;
     k4a_calibration_t m_calibration {};
-    k4a_image_t m_rgbImageScaled = nullptr;
-    k4a_calibration_t m_scaledRgbCalibration;
     k4a_transformation_t m_transform = nullptr;
-    k4a_transformation_t m_transformScaled = nullptr;
+    k4a_image_t m_transformedRgbImage = nullptr;
+    k4a_image_t m_transformedDepthImage = nullptr;
 
     /** interaction context boundary */
     Point pclLowerBoundary;
@@ -84,7 +83,7 @@ public:
      * @param sptr_points
      *   "Safe global" share pointer to point cloud points.
      */
-    void transform();
+    void transform(const int& type);
 
     /**
      * getNumPoints

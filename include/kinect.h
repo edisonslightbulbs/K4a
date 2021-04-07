@@ -32,6 +32,10 @@ struct DEVICE_CONF {
     }
 };
 
+extern const int FAST_PCL;
+extern const int RGB_TO_DEPTH;
+extern const int DEPTH_TO_RGB;
+
 /**
  * @file kinect.h
  *    Kinect device.
@@ -59,8 +63,8 @@ public:
     k4a_image_t m_transformedDepthImage = nullptr;
 
     /** interaction context boundary */
-    Point pclLowerBoundary;
-    Point pclUpperBoundary;
+    Point m_pclLowerBoundary;
+    Point m_pclUpperBoundary;
 
     /** context pcl */
     std::shared_ptr<std::vector<float>> sptr_context
@@ -123,7 +127,7 @@ public:
      * capturePcl
      *   Capture and transform next point cloud frame
      */
-    void capturePcl();
+    void capturePcl(const int& TYPE_OF_TRANSFORMATION);
 
     /**
      * close

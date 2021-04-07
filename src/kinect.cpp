@@ -39,7 +39,7 @@ void Kinect::getCapture()
 void Kinect::transformDepthImageToPcl()
 {
     if (K4A_RESULT_SUCCEEDED
-        != k4a_transformation_depth_image_to_point_cloud(m_transformation,
+        != k4a_transformation_depth_image_to_point_cloud(m_transform,
             m_depthImage, K4A_CALIBRATION_TYPE_DEPTH, m_pclImage)) {
         throw std::runtime_error("Failed to compute point cloud.");
     }
@@ -143,8 +143,8 @@ void Kinect::release() const
 
 void Kinect::close() const
 {
-    if (m_transformation != nullptr) {
-        k4a_transformation_destroy(m_transformation);
+    if (m_transform != nullptr) {
+        k4a_transformation_destroy(m_transform);
     }
     if (m_device != nullptr) {
         k4a_device_close(m_device);
@@ -182,7 +182,7 @@ Kinect::Kinect()
         != k4a_device_start_cameras(m_device, &deviceConf.m_config)) {
         throw std::runtime_error("Failed to start cameras!");
     }
-    m_transformation = k4a_transformation_create(&m_calibration);
+    m_transform = k4a_transformation_create(&m_calibration);
 
     /** capture dry run */
     getCapture();

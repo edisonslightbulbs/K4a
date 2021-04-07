@@ -25,13 +25,13 @@ void Kinect::defineContext()
         (*sptr_pcl)[3 * i + 1] = (float)point_cloud_image_data[3 * i + 1];
         (*sptr_pcl)[3 * i + 2] = (float)point_cloud_image_data[3 * i + 2];
 
-        if ((float)point_cloud_image_data[3 * i + 0] > pclUpperBoundary.m_x
-            || (float)point_cloud_image_data[3 * i + 0] < pclLowerBoundary.m_x
-            || (float)point_cloud_image_data[3 * i + 1] > pclUpperBoundary.m_y
-            || (float)point_cloud_image_data[3 * i + 1] < pclLowerBoundary.m_y
-            || (float)point_cloud_image_data[3 * i + 2] > pclUpperBoundary.m_z
+        if ((float)point_cloud_image_data[3 * i + 0] > m_pclUpperBoundary.m_x
+            || (float)point_cloud_image_data[3 * i + 0] < m_pclLowerBoundary.m_x
+            || (float)point_cloud_image_data[3 * i + 1] > m_pclUpperBoundary.m_y
+            || (float)point_cloud_image_data[3 * i + 1] < m_pclLowerBoundary.m_y
+            || (float)point_cloud_image_data[3 * i + 2] > m_pclUpperBoundary.m_z
             || (float)point_cloud_image_data[3 * i + 2]
-                < pclLowerBoundary.m_z) {
+                < m_pclLowerBoundary.m_z) {
             continue;
         }
         segment[3 * i + 0] = (float)point_cloud_image_data[3 * i + 0];
@@ -41,8 +41,8 @@ void Kinect::defineContext()
 
     /**   iff context boundaries undefined: context = unfiltered point cloud
      *  else, boundary defined segment as interaction context */
-    if (pclUpperBoundary.m_z == __FLT_MAX__
-        || pclLowerBoundary.m_z == __FLT_MIN__) {
+    if (m_pclUpperBoundary.m_z == __FLT_MAX__
+        || m_pclLowerBoundary.m_z == __FLT_MIN__) {
         *sptr_context = *sptr_pcl;
     } else {
         *sptr_context = segment;
@@ -119,7 +119,8 @@ void Kinect::transform(const int& type)
             throw std::runtime_error("Failed to create point cloud image!");
         }
         const std::string c2d = io::pwd() + "/output/color2depth.ply";
-        ply::write(m_pclImage, m_transformedRgbImage, c2d);
+        ply::write(m_pclLowerBoundary, m_pclUpperBoundary, m_pclImage,
+            m_transformedRgbImage, c2d);
         break;
     }
     case 2: {
@@ -158,7 +159,7 @@ void Kinect::transform(const int& type)
             throw std::runtime_error("Failed to compute point cloud!");
         }
         const std::string d2c = io::pwd() + "/output/depth2color.ply";
-        ply::write(m_pclImage, m_transformedRgbImage, d2c);
+        // ply::write(m_pclImage, m_transformedRgbImage, d2c);
         break;
     }
     default: {
@@ -168,17 +169,14 @@ void Kinect::transform(const int& type)
 }
 
 /** transformation options for kinect */
-#define FAST_PCL 0
-#define RGB_TO_DEPTH 1
-#define DEPTH_TO_RGB 2
 
-void Kinect::capturePcl()
+void Kinect::capturePcl(const int& TYPE_OF_TRANSFORMATION)
 {
     /** block threads from accessing resources
      *  during capture and transformation */
     std::lock_guard<std::mutex> lck(m_mutex);
     getCapture();
-    transform(RGB_TO_DEPTH);
+    transform(TYPE_OF_TRANSFORMATION);
     release();
 }
 
@@ -201,8 +199,8 @@ void Kinect::setContextBounds(std::pair<Point, Point> threshold)
     /** dis-allow threads from accessing
      *  resources during context definition */
     std::unique_lock lock(s_mutex);
-    pclLowerBoundary = threshold.first;
-    pclUpperBoundary = threshold.second;
+    m_pclLowerBoundary = threshold.first;
+    m_pclUpperBoundary = threshold.second;
 }
 
 int Kinect::getNumPoints()
@@ -254,8 +252,8 @@ Kinect::Kinect()
     m_timeout = deviceConf.TIMEOUT;
 
     /** initialize boundless interaction context */
-    pclLowerBoundary = Point(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
-    pclUpperBoundary = Point(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
+    m_pclLowerBoundary = Point(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
+    m_pclUpperBoundary = Point(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
 
     /** open kinect, calibrate device, start cameras, and get transform */
     uint32_t deviceCount = k4a_device_get_installed_count();

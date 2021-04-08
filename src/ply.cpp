@@ -1,9 +1,5 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License.
-
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <vector>
 
 #include "ply.h"
@@ -57,7 +53,7 @@ void ply::write(const Point& lowerBound, const Point& upperBound,
         points.push_back(point);
     }
 
-    std::ofstream ofs(file); // text mode first
+    std::ofstream ofs(file);
     ofs << "ply" << std::endl;
     ofs << "format ascii 1.0" << std::endl;
     ofs << "element vertex"

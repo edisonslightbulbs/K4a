@@ -2,28 +2,50 @@
 #include "io.h"
 #include "ply.h"
 
-extern std::mutex SYNCHRONIZE;
 extern std::shared_ptr<bool> RUN_SYSTEM;
 
 void Kinect::defineContext()
 {
+    int width = k4a_image_get_width_pixels(m_pclImage);
+    int height = k4a_image_get_height_pixels(m_transformedRgbImage);
+
     auto* point_cloud_image_data
         = (int16_t*)(void*)k4a_image_get_buffer(m_pclImage);
 
+    uint8_t* color_image_data = k4a_image_get_buffer(m_transformedRgbImage);
+
     /** iff context boundaries undefined */
-    std::vector<float> segment(numPoints * 3);
-    for (int i = 0; i < getNumPoints(); i++) {
+    std::vector<float> segment(m_numPoints * 3);
+    for (int i = 0; i < m_numPoints; i++) {
         if (point_cloud_image_data[3 * i + 0] == 0
             || point_cloud_image_data[3 * i + 1] == 0
             || point_cloud_image_data[3 * i + 2] == 0) {
             (*sptr_pcl)[3 * i + 0] = 0.0f;
             (*sptr_pcl)[3 * i + 1] = 0.0f;
             (*sptr_pcl)[3 * i + 2] = 0.0f;
+
+            /** colors from the kinect are in reverse
+             *  order thus, assign in reverse order */
+            (*sptr_color)[3 * i + 2] = color_image_data[4 * i + 0];
+            (*sptr_color)[3 * i + 1] = color_image_data[4 * i + 1];
+            (*sptr_color)[3 * i + 0] = color_image_data[4 * i + 2];
             continue;
         }
         (*sptr_pcl)[3 * i + 0] = (float)point_cloud_image_data[3 * i + 0];
         (*sptr_pcl)[3 * i + 1] = (float)point_cloud_image_data[3 * i + 1];
         (*sptr_pcl)[3 * i + 2] = (float)point_cloud_image_data[3 * i + 2];
+
+        /** colors from the kinect are in reverse
+         *  order thus, assign in reverse order */
+        (*sptr_color)[3 * i + 2] = color_image_data[4 * i + 0];
+        (*sptr_color)[3 * i + 1] = color_image_data[4 * i + 1];
+        (*sptr_color)[3 * i + 0] = color_image_data[4 * i + 2];
+
+        // if ((*sptr_color)[4 * i + 0] == 0 &&(*sptr_color)[4 * i + 1] == 0 &&
+        // (*sptr_color)[4 * i + 2] == 0
+        //     && (*sptr_color)[4 * i + 3] == 0) {
+        //     continue;
+        // }
 
         if ((float)point_cloud_image_data[3 * i + 0] > m_pclUpperBoundary.m_x
             || (float)point_cloud_image_data[3 * i + 0] < m_pclLowerBoundary.m_x
@@ -92,38 +114,33 @@ void Kinect::getCapture()
         throw std::runtime_error("Failed to create point cloud image!");
     }
 }
-void Kinect::transform(const int& type)
+void Kinect::transform(const int& TRANSFORMATION_TYPE)
 {
-    switch (type) {
-    case 0: {
-        /** transform depth image to pcl: FAST_PCL */
-        if (K4A_RESULT_SUCCEEDED
-            != k4a_transformation_depth_image_to_point_cloud(m_transform,
-                m_depthImage, K4A_CALIBRATION_TYPE_DEPTH, m_pclImage)) {
-            throw std::runtime_error("Failed to compute point cloud.");
-        }
-        defineContext();
-        break;
+    /** transform depth image to pcl */
+    if (K4A_RESULT_SUCCEEDED
+        != k4a_transformation_depth_image_to_point_cloud(m_transform,
+            m_depthImage, K4A_CALIBRATION_TYPE_DEPTH, m_pclImage)) {
+        throw std::runtime_error("Failed to compute point cloud.");
     }
-    case 1: {
-        /**transform rgb image to depth image: RGB_TO_DEPTH */
-        if (K4A_RESULT_SUCCEEDED
-            != k4a_transformation_depth_image_to_point_cloud(m_transform,
-                m_depthImage, K4A_CALIBRATION_TYPE_DEPTH, m_pclImage)) {
-            throw std::runtime_error("Failed to compute point cloud.");
-        }
 
+    switch (TRANSFORMATION_TYPE) {
+    case 1: {
+
+        /** transform rgb image to depth image: RGB_TO_DEPTH */
         if (K4A_RESULT_SUCCEEDED
             != k4a_transformation_color_image_to_depth_camera(
                 m_transform, m_depthImage, m_rgbImage, m_transformedRgbImage)) {
             throw std::runtime_error("Failed to create point cloud image!");
         }
-        const std::string c2d = io::pwd() + "/output/color2depth.ply";
-        ply::write(m_pclLowerBoundary, m_pclUpperBoundary, m_pclImage,
-            m_transformedRgbImage, c2d);
+        // /** dev option: write rgb-depth ply file */
+        // const std::string c2d = io::pwd() + "/output/color2depth.ply";
+        // ply::write(m_pclLowerBoundary, m_pclUpperBoundary, m_pclImage,
+        //     m_transformedRgbImage, c2d);
         break;
     }
+
     case 2: {
+
         /** transform depth image into color image: DEPTH_TO_RGB */
         int colorWidth = k4a_image_get_width_pixels(m_rgbImage);
         int colorHeight = k4a_image_get_height_pixels(m_rgbImage);
@@ -158,7 +175,8 @@ void Kinect::transform(const int& type)
                 m_pclImage)) {
             throw std::runtime_error("Failed to compute point cloud!");
         }
-        const std::string d2c = io::pwd() + "/output/depth2color.ply";
+        // /** dev option write depth-rgb ply file */
+        // const std::string d2c = io::pwd() + "/output/depth2color.ply";
         // ply::write(m_pclImage, m_transformedRgbImage, d2c);
         break;
     }
@@ -177,7 +195,8 @@ void Kinect::capturePcl(const int& TYPE_OF_TRANSFORMATION)
     std::lock_guard<std::mutex> lck(m_mutex);
     getCapture();
     transform(TYPE_OF_TRANSFORMATION);
-    release();
+    defineContext();
+    // release();
 }
 
 std::shared_ptr<std::vector<float>> Kinect::getPcl()
@@ -185,6 +204,27 @@ std::shared_ptr<std::vector<float>> Kinect::getPcl()
     /** allow multiple threads to read unfiltered point cloud */
     std::shared_lock lock(s_mutex);
     return sptr_pcl;
+}
+
+k4a_image_t Kinect::getTransformedRgb()
+{
+    /** allow multiple threads to read transformed rgb image*/
+    std::shared_lock lock(s_mutex);
+    return m_transformedRgbImage;
+}
+
+std::shared_ptr<std::vector<uint8_t>> Kinect::getColor()
+{
+    /** allow multiple threads to read pcl color */
+    std::shared_lock lock(s_mutex);
+    return sptr_color;
+}
+
+k4a_image_t Kinect::getTransformedDepth()
+{
+    /** allow multiple threads to read transformed rgb image*/
+    std::shared_lock lock(s_mutex);
+    return m_transformedDepthImage;
 }
 
 std::shared_ptr<std::vector<float>> Kinect::getContext()
@@ -207,7 +247,7 @@ int Kinect::getNumPoints()
 {
     /** allow multiple threads to read image resolution */
     std::shared_lock lock(s_mutex);
-    return numPoints;
+    return m_numPoints;
 }
 
 void Kinect::release() const
@@ -234,9 +274,9 @@ void Kinect::release() const
 
 void Kinect::close() const
 {
-    if (m_transform != nullptr) {
-        k4a_transformation_destroy(m_transform);
-    }
+    // if (m_transform != nullptr) {
+    //     k4a_transformation_destroy(m_transform);
+    // }
     if (m_device != nullptr) {
         k4a_device_close(m_device);
     }

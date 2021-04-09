@@ -48,7 +48,7 @@ public:
     std::shared_mutex s_mutex;
 
     /** image resolution */
-    int numPoints = 640 * 576;
+    int m_numPoints = 640 * 576;
 
     /** initialize device config */
     int32_t m_timeout = 0;
@@ -66,13 +66,17 @@ public:
     Point m_pclLowerBoundary;
     Point m_pclUpperBoundary;
 
-    /** context pcl */
+    /** pcl: segmented tabletop interaction context */
     std::shared_ptr<std::vector<float>> sptr_context
-        = std::make_shared<std::vector<float>>(numPoints * 3);
+        = std::make_shared<std::vector<float>>(m_numPoints * 3);
 
-    /** tabletop environment pcl */
+    /** pcl: unsegmented tabletop environment */
     std::shared_ptr<std::vector<float>> sptr_pcl
-        = std::make_shared<std::vector<float>>(numPoints * 3);
+        = std::make_shared<std::vector<float>>(m_numPoints * 3);
+
+    /** pcl color */
+    std::shared_ptr<std::vector<uint8_t>> sptr_color
+        = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
 
     /**
      * capture
@@ -87,7 +91,7 @@ public:
      * @param sptr_points
      *   "Safe global" share pointer to point cloud points.
      */
-    void transform(const int& type);
+    void transform(const int& TRANSFORMATION_TYPE);
 
     /**
      * getNumPoints
@@ -154,5 +158,11 @@ public:
     ~Kinect();
 
     void defineContext();
+
+    k4a_image_t getTransformedRgb();
+
+    k4a_image_t getTransformedDepth();
+
+    std::shared_ptr<std::vector<uint8_t>> getColor();
 };
 #endif /* KINECT_H */

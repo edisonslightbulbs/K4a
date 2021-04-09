@@ -1,10 +1,13 @@
 #include <fstream>
 #include <iostream>
+#include <set>
 #include <vector>
 
+#include "io.h"
 #include "ply.h"
+#include "point.h"
 
-struct rgbPoint {
+struct t_rgbPoint {
     int16_t xyz[3];
     uint8_t rgb[3];
 };
@@ -13,7 +16,7 @@ void ply::write(const Point& lowerBound, const Point& upperBound,
     const k4a_image_t& pclImage, const k4a_image_t& rgbImage,
     const std::string& file)
 {
-    std::vector<rgbPoint> points;
+    std::vector<t_rgbPoint> points;
 
     int width = k4a_image_get_width_pixels(pclImage);
     int height = k4a_image_get_height_pixels(rgbImage);
@@ -23,7 +26,7 @@ void ply::write(const Point& lowerBound, const Point& upperBound,
     uint8_t* color_image_data = k4a_image_get_buffer(rgbImage);
 
     for (int i = 0; i < width * height; i++) {
-        rgbPoint point {};
+        t_rgbPoint point {};
         point.xyz[0] = point_cloud_image_data[3 * i + 0];
         point.xyz[1] = point_cloud_image_data[3 * i + 1];
         point.xyz[2] = point_cloud_image_data[3 * i + 2];
@@ -77,5 +80,96 @@ void ply::write(const Point& lowerBound, const Point& upperBound,
         ss << std::endl;
     }
     std::ofstream ofs_text(file, std::ios::out | std::ios::app);
+    ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
+}
+
+std::vector<Point> colorize(
+    std::vector<Point>& raw, std::vector<Point>& segment)
+{
+    Point centroid = Point::centroid(segment);
+
+    for (auto& point : raw) {
+        point.m_distance.second = point.distance(centroid);
+    }
+
+    for (auto& point : segment) {
+        point.m_distance.second = point.distance(centroid);
+    }
+
+    const int CONTEXT_CLUSTER = 100; // <- random value
+
+    std::set<Point> colorizedContext;
+    for (auto& point : segment) {
+        point.m_cluster = CONTEXT_CLUSTER;
+        colorizedContext.insert(point);
+    }
+    for (auto& point : raw) {
+        colorizedContext.insert(point);
+    }
+    std::vector<Point> colorized;
+    colorized.assign(colorizedContext.begin(), colorizedContext.end());
+    return colorized;
+}
+
+void ply::write(std::vector<Point>& raw, std::vector<Point>& context)
+{
+
+    std::vector<Point> points = colorize(raw, context);
+
+    const std::string OUTPUT_PATH = io::pwd() + "/output/context.ply";
+    std::ofstream ofs(OUTPUT_PATH);
+    ofs << "ply" << std::endl;
+    ofs << "format ascii 1.0" << std::endl;
+    ofs << "element vertex " << points.size() << std::endl;
+    ofs << "property float x" << std::endl;
+    ofs << "property float y" << std::endl;
+    ofs << "property float z" << std::endl;
+    ofs << "property uchar diffuse_red" << std::endl;
+    ofs << "property uchar diffuse_green" << std::endl;
+    ofs << "property uchar diffuse_blue" << std::endl;
+    ofs << "end_header" << std::endl;
+    ofs.close();
+
+    std::stringstream ss;
+    for (const auto& point : points) {
+        if (point.m_cluster == 100) {
+            ss << point.m_x << " " << point.m_y << " " << point.m_z
+               << " 174 1 126" << std::endl;
+            continue;
+        }
+        ss << point.m_x << " " << point.m_y << " " << point.m_z;
+        ss << " " << 0 << " " << 0 << " " << 0;
+        ss << std::endl;
+    }
+
+    std::ofstream ofs_text(OUTPUT_PATH, std::ios::out | std::ios::app);
+    ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
+}
+
+void ply::write(std::vector<Point>& points)
+{
+    const std::string OUTPUT_PATH = io::pwd() + "/output/context.ply";
+    std::ofstream ofs(OUTPUT_PATH);
+    ofs << "ply" << std::endl;
+    ofs << "format ascii 1.0" << std::endl;
+    ofs << "element vertex " << points.size() << std::endl;
+    ofs << "property float x" << std::endl;
+    ofs << "property float y" << std::endl;
+    ofs << "property float z" << std::endl;
+    ofs << "property uchar diffuse_red" << std::endl;
+    ofs << "property uchar diffuse_green" << std::endl;
+    ofs << "property uchar diffuse_blue" << std::endl;
+    ofs << "end_header" << std::endl;
+    ofs.close();
+
+    std::stringstream ss;
+    for (const auto& point : points) {
+        ss << point.m_x << " " << point.m_y << " " << point.m_z;
+        ss << " " << (float)point.m_rgb[0] << " " << (float)point.m_rgb[1]
+           << " " << (float)point.m_rgb[2];
+        ss << std::endl;
+    }
+
+    std::ofstream ofs_text(OUTPUT_PATH, std::ios::out | std::ios::app);
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }

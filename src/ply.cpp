@@ -12,12 +12,10 @@ struct t_rgbPoint {
     uint8_t rgb[3];
 };
 
-void ply::write(const Point& lowerBound, const Point& upperBound,
-    const k4a_image_t& pclImage, const k4a_image_t& rgbImage,
+void ply::write(const k4a_image_t& pclImage, const k4a_image_t& rgbImage,
     const std::string& file)
 {
     std::vector<t_rgbPoint> points;
-
     int width = k4a_image_get_width_pixels(pclImage);
     int height = k4a_image_get_height_pixels(rgbImage);
 
@@ -33,16 +31,6 @@ void ply::write(const Point& lowerBound, const Point& upperBound,
         if (point.xyz[2] == 0) {
             continue;
         }
-
-        if ((float)point_cloud_image_data[3 * i + 0] > upperBound.m_x
-            || (float)point_cloud_image_data[3 * i + 0] < lowerBound.m_x
-            || (float)point_cloud_image_data[3 * i + 1] > upperBound.m_y
-            || (float)point_cloud_image_data[3 * i + 1] < lowerBound.m_y
-            || (float)point_cloud_image_data[3 * i + 2] > upperBound.m_z
-            || (float)point_cloud_image_data[3 * i + 2] < lowerBound.m_z) {
-            continue;
-        }
-
         point.rgb[0] = color_image_data[4 * i + 0];
         point.rgb[1] = color_image_data[4 * i + 1];
         point.rgb[2] = color_image_data[4 * i + 2];
@@ -52,7 +40,6 @@ void ply::write(const Point& lowerBound, const Point& upperBound,
             && alpha == 0) {
             continue;
         }
-
         points.push_back(point);
     }
 
@@ -113,9 +100,7 @@ std::vector<Point> colorize(
 
 void ply::write(std::vector<Point>& raw, std::vector<Point>& context)
 {
-
     std::vector<Point> points = colorize(raw, context);
-
     const std::string OUTPUT_PATH = io::pwd() + "/output/context.ply";
     std::ofstream ofs(OUTPUT_PATH);
     ofs << "ply" << std::endl;
@@ -141,7 +126,6 @@ void ply::write(std::vector<Point>& raw, std::vector<Point>& context)
         ss << " " << 0 << " " << 0 << " " << 0;
         ss << std::endl;
     }
-
     std::ofstream ofs_text(OUTPUT_PATH, std::ios::out | std::ios::app);
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }
@@ -169,7 +153,6 @@ void ply::write(std::vector<Point>& points)
            << " " << (float)point.m_rgb[2];
         ss << std::endl;
     }
-
     std::ofstream ofs_text(OUTPUT_PATH, std::ios::out | std::ios::app);
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }

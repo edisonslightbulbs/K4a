@@ -25,6 +25,6 @@ void write(std::vector<Point>& raw, std::vector<Point>& context);
 void write(std::vector<Point>& points);
 
 void write(k4a_image_t const& pclImage, k4a_image_t const& rgbImage,
-    const std::string& file);
+    const std::string& FILE);
 }
 #endif /* PLY_H */

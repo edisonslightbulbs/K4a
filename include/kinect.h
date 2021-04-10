@@ -58,31 +58,34 @@ public:
     k4a_capture_t m_capture = nullptr;
     k4a_image_t m_depthImage = nullptr;
     k4a_calibration_t m_calibration {};
+    k4a_image_t m_rgb2depthImage = nullptr;
+    k4a_image_t m_depth2rgbImage = nullptr;
     k4a_transformation_t m_transform = nullptr;
-    k4a_image_t m_transformedRgbImage = nullptr;
-    k4a_image_t m_transformedDepthImage = nullptr;
 
-    /** interaction context boundary */
-    Point m_pclLowerBoundary;
-    Point m_pclUpperBoundary;
+    /** context boundary */
+    Point m_contextLower;
+    Point m_contextUpper;
 
-    /** pcl: segmented tabletop interaction context */
-    std::shared_ptr<std::vector<float>> sptr_context
+    /** pcl: unsegmented */
+    std::shared_ptr<std::vector<float>> sptr_pcl
         = std::make_shared<std::vector<float>>(m_numPoints * 3);
 
-    /** pcl: unsegmented tabletop environment */
-    std::shared_ptr<std::vector<float>> sptr_pcl
+    /** pcl: segmented */
+    std::shared_ptr<std::vector<float>> sptr_context
         = std::make_shared<std::vector<float>>(m_numPoints * 3);
 
     /** pcl color */
     std::shared_ptr<std::vector<uint8_t>> sptr_color
         = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
 
+    /** output PLY file */
+    std::string m_file;
+
     /**
      * capture
      *   Capture depth and color images.
      */
-    void getCapture();
+    void capture();
 
     /**
      * transform
@@ -91,7 +94,7 @@ public:
      * @param sptr_points
      *   "Safe global" share pointer to point cloud points.
      */
-    void transform(const int& TRANSFORMATION_TYPE);
+    void transform(const int& transformType);
 
     /**
      * getNumPoints
@@ -125,13 +128,13 @@ public:
      *    Pair of points { min, max } corresponding to the
      *    lower-bound and lower-bound of interaction context.
      */
-    void setContextBounds(std::pair<Point, Point> threshold);
+    void setContextBounds(const std::pair<Point, Point>& threshold);
 
     /**
-     * capturePcl
+     * record
      *   Capture and transform next point cloud frame
      */
-    void capturePcl(const int& TYPE_OF_TRANSFORMATION);
+    void record(const int& transformType);
 
     /**
      * close
@@ -153,15 +156,11 @@ public:
 
     /**
      * Kinect
-     *   De-initialize kinect device.
+     *   Destroy kinect object
      */
     ~Kinect();
 
-    void defineContext();
-
-    k4a_image_t getTransformedRgb();
-
-    k4a_image_t getTransformedDepth();
+    void construct();
 
     std::shared_ptr<std::vector<uint8_t>> getColor();
 };

@@ -4,8 +4,10 @@
 #define path io::pwd()
 
 extern std::shared_ptr<bool> RUN_SYSTEM;
+extern const int RGB_TO_DEPTH = 1;
+extern const int DEPTH_TO_RGB = 2;
 
-void Kinect::construct()
+void Kinect::constructPcl()
 {
     auto* pclData = (int16_t*)(void*)k4a_image_get_buffer(m_pclImage);
     uint8_t* colorData = k4a_image_get_buffer(m_rgb2depthImage);
@@ -47,14 +49,15 @@ void Kinect::construct()
         segment[3 * i + 1] = (float)pclData[3 * i + 1];
         segment[3 * i + 2] = (float)pclData[3 * i + 2];
     }
-    /** iff context boundaries are not set default to full point cloud */
+
+    /** Iff context boundaries are not set, default to full point cloud */
+    // todo: tidy up
     if (m_contextUpper.m_z == __FLT_MAX__
         || m_contextLower.m_z == __FLT_MIN__) {
         *sptr_context = *sptr_pcl;
     } else {
         *sptr_context = segment;
     }
-    // todo: tidy up
 }
 
 void Kinect::capture()
@@ -115,8 +118,7 @@ void Kinect::transform(const int& transformType)
 
     switch (transformType) {
 
-    /** RGB -> DEPTH */
-    case 1: {
+    case RGB_TO_DEPTH: {
         if (K4A_RESULT_SUCCEEDED
             != k4a_transformation_color_image_to_depth_camera(
                 m_transform, m_depthImage, m_rgbImage, m_rgb2depthImage)) {
@@ -129,8 +131,7 @@ void Kinect::transform(const int& transformType)
         break;
     }
 
-    /** DEPTH -> RGB */
-    case 2: {
+    case DEPTH_TO_RGB: {
         int colorWidth = k4a_image_get_width_pixels(m_rgbImage);
         int colorHeight = k4a_image_get_height_pixels(m_rgbImage);
 
@@ -143,7 +144,6 @@ void Kinect::transform(const int& transformType)
             throw std::runtime_error(
                 "Failed to initialize depth2rgb point cloud image!");
         }
-
         /** re-initialize pcl image using rgb image dimensions */
         m_pclImage = nullptr;
         if (K4A_RESULT_SUCCEEDED
@@ -153,7 +153,6 @@ void Kinect::transform(const int& transformType)
             throw std::runtime_error("Failed to initialize point cloud image "
                                      "using rgb image dimensions!");
         }
-
         /** transform: depth -> rgb */
         if (K4A_RESULT_SUCCEEDED
             != k4a_transformation_depth_image_to_color_camera(
@@ -161,7 +160,6 @@ void Kinect::transform(const int& transformType)
             throw std::runtime_error(
                 "Failed to create depth2rgb point cloud image!");
         }
-
         /** transform: depth -> point cloud */
         if (K4A_RESULT_SUCCEEDED
             != k4a_transformation_depth_image_to_point_cloud(m_transform,
@@ -179,8 +177,6 @@ void Kinect::transform(const int& transformType)
     }
 }
 
-/** transformation options for kinect */
-
 void Kinect::record(const int& transformType)
 {
     /** block threads from accessing
@@ -188,7 +184,7 @@ void Kinect::record(const int& transformType)
     std::lock_guard<std::mutex> lck(m_mutex);
     capture();
     transform(transformType);
-    construct();
+    constructPcl();
 }
 
 std::shared_ptr<std::vector<float>> Kinect::getPcl()
@@ -266,7 +262,7 @@ Kinect::~Kinect() { close(); }
 Kinect::Kinect()
 {
     /** setup kinect  */
-    DEVICE_CONF deviceConf;
+    t_config deviceConf;
     m_device = deviceConf.m_device;
     m_timeout = deviceConf.TIMEOUT;
 

@@ -11,8 +11,7 @@
     std::ofstream ofs(FILE);                                                   \
     ofs << "ply" << std::endl;                                                 \
     ofs << "format ascii 1.0" << std::endl;                                    \
-    ofs << "element vertex"                                                    \
-        << " " << points.size() << std::endl;                                  \
+    ofs << "element vertex" << " " << points.size() << std::endl;              \
     ofs << "property float x" << std::endl;                                    \
     ofs << "property float y" << std::endl;                                    \
     ofs << "property float z" << std::endl;                                    \
@@ -20,7 +19,7 @@
     ofs << "property uchar green" << std::endl;                                \
     ofs << "property uchar blue" << std::endl;                                 \
     ofs << "end_header" << std::endl;                                          \
-    ofs.close();
+    ofs.close()
 
 struct t_rgbPoint {
     int16_t xyz[3];

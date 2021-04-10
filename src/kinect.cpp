@@ -1,78 +1,53 @@
 #include "kinect.h"
 #include "io.h"
 #include "ply.h"
+#define path io::pwd()
 
 extern std::shared_ptr<bool> RUN_SYSTEM;
 
-void Kinect::defineContext()
+void Kinect::construct()
 {
-    int width = k4a_image_get_width_pixels(m_pclImage);
-    int height = k4a_image_get_height_pixels(m_transformedRgbImage);
+    auto* pclData = (int16_t*)(void*)k4a_image_get_buffer(m_pclImage);
+    uint8_t* colorData = k4a_image_get_buffer(m_rgb2depthImage);
 
-    auto* point_cloud_image_data
-        = (int16_t*)(void*)k4a_image_get_buffer(m_pclImage);
-
-    uint8_t* color_image_data = k4a_image_get_buffer(m_transformedRgbImage);
-
-    /** iff context boundaries undefined */
-    std::vector<float> segment(m_numPoints * 3);
     for (int i = 0; i < m_numPoints; i++) {
-        if (point_cloud_image_data[3 * i + 0] == 0
-            || point_cloud_image_data[3 * i + 1] == 0
-            || point_cloud_image_data[3 * i + 2] == 0) {
-            (*sptr_pcl)[3 * i + 0] = 0.0f;
-            (*sptr_pcl)[3 * i + 1] = 0.0f;
-            (*sptr_pcl)[3 * i + 2] = 0.0f;
-
-            /** colors from the kinect are in reverse
-             *  order thus, assign in reverse order */
-            (*sptr_color)[3 * i + 2] = color_image_data[4 * i + 0];
-            (*sptr_color)[3 * i + 1] = color_image_data[4 * i + 1];
-            (*sptr_color)[3 * i + 0] = color_image_data[4 * i + 2];
+        if (pclData[3 * i + 2] == 0) {
             continue;
         }
-        (*sptr_pcl)[3 * i + 0] = (float)point_cloud_image_data[3 * i + 0];
-        (*sptr_pcl)[3 * i + 1] = (float)point_cloud_image_data[3 * i + 1];
-        (*sptr_pcl)[3 * i + 2] = (float)point_cloud_image_data[3 * i + 2];
+        /** build raw point cloud */
+        (*sptr_pcl)[3 * i + 0] = (float)pclData[3 * i + 0];
+        (*sptr_pcl)[3 * i + 1] = (float)pclData[3 * i + 1];
+        (*sptr_pcl)[3 * i + 2] = (float)pclData[3 * i + 2];
 
-        /** colors from the kinect are in reverse
-         *  order thus, assign in reverse order */
-        (*sptr_color)[3 * i + 2] = color_image_data[4 * i + 0];
-        (*sptr_color)[3 * i + 1] = color_image_data[4 * i + 1];
-        (*sptr_color)[3 * i + 0] = color_image_data[4 * i + 2];
+        /** build color n.b., kinect color reversed! */
+        (*sptr_color)[3 * i + 2] = colorData[4 * i + 0];
+        (*sptr_color)[3 * i + 1] = colorData[4 * i + 1];
+        (*sptr_color)[3 * i + 0] = colorData[4 * i + 2];
 
-        // if ((*sptr_color)[4 * i + 0] == 0 &&(*sptr_color)[4 * i + 1] == 0 &&
-        // (*sptr_color)[4 * i + 2] == 0
-        //     && (*sptr_color)[4 * i + 3] == 0) {
-        //     continue;
-        // }
-
-        if ((float)point_cloud_image_data[3 * i + 0] > m_pclUpperBoundary.m_x
-            || (float)point_cloud_image_data[3 * i + 0] < m_pclLowerBoundary.m_x
-            || (float)point_cloud_image_data[3 * i + 1] > m_pclUpperBoundary.m_y
-            || (float)point_cloud_image_data[3 * i + 1] < m_pclLowerBoundary.m_y
-            || (float)point_cloud_image_data[3 * i + 2] > m_pclUpperBoundary.m_z
-            || (float)point_cloud_image_data[3 * i + 2]
-                < m_pclLowerBoundary.m_z) {
+        /** filter interaction context */
+        if ((float)pclData[3 * i + 0] > m_contextUpper.m_x
+            || (float)pclData[3 * i + 0] < m_contextLower.m_x
+            || (float)pclData[3 * i + 1] > m_contextUpper.m_y
+            || (float)pclData[3 * i + 1] < m_contextLower.m_y
+            || (float)pclData[3 * i + 2] > m_contextUpper.m_z
+            || (float)pclData[3 * i + 2] < m_contextLower.m_z) {
             continue;
         }
-        segment[3 * i + 0] = (float)point_cloud_image_data[3 * i + 0];
-        segment[3 * i + 1] = (float)point_cloud_image_data[3 * i + 1];
-        segment[3 * i + 2] = (float)point_cloud_image_data[3 * i + 2];
+        (*sptr_context)[3 * i + 0] = (float)pclData[3 * i + 0];
+        (*sptr_context)[3 * i + 1] = (float)pclData[3 * i + 1];
+        (*sptr_context)[3 * i + 2] = (float)pclData[3 * i + 2];
     }
 
-    /**   iff context boundaries undefined: context = unfiltered point cloud
-     *  else, boundary defined segment as interaction context */
-    if (m_pclUpperBoundary.m_z == __FLT_MAX__
-        || m_pclLowerBoundary.m_z == __FLT_MIN__) {
+    /** iff context boundaries are not set default to full point cloud */
+    if (m_contextUpper.m_z == __FLT_MAX__
+        || m_contextLower.m_z == __FLT_MIN__) {
         *sptr_context = *sptr_pcl;
-    } else {
-        *sptr_context = segment;
     }
 }
 
-void Kinect::getCapture()
+void Kinect::capture()
 {
+    /** initiate capture sequence */
     switch (k4a_device_get_capture(m_device, &m_capture, m_timeout)) {
     case K4A_WAIT_RESULT_SUCCEEDED:
         break;
@@ -97,87 +72,93 @@ void Kinect::getCapture()
     int depthWidth = k4a_image_get_width_pixels(m_depthImage);
     int depthHeight = k4a_image_get_height_pixels(m_depthImage);
 
-    /** create rgb image */
-    m_transformedRgbImage = nullptr;
+    /** initialize rgb image using depth image dimensions */
+    m_rgb2depthImage = nullptr;
     if (K4A_RESULT_SUCCEEDED
         != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32, depthWidth,
             depthHeight, depthWidth * 4 * (int)sizeof(uint8_t),
-            &m_transformedRgbImage)) {
-        throw std::runtime_error("Failed to create transformed color image!");
+            &m_rgb2depthImage)) {
+        throw std::runtime_error(
+            "Failed to initialize rgb image using depth image dimensions!");
     }
 
-    /** create pcl image */
+    /** initialize pcl image using depth image dimensions */
     m_pclImage = nullptr;
     if (K4A_RESULT_SUCCEEDED
         != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, depthWidth, depthHeight,
             depthWidth * 3 * (int)sizeof(int16_t), &m_pclImage)) {
-        throw std::runtime_error("Failed to create point cloud image!");
+        throw std::runtime_error("Failed to initialize point cloud image using "
+                                 "depth image dimensions!");
     }
 }
-void Kinect::transform(const int& TRANSFORMATION_TYPE)
+void Kinect::transform(const int& transformType)
 {
-    /** transform depth image to pcl */
+    /** DEPTH -> POINT CLOUD */
     if (K4A_RESULT_SUCCEEDED
         != k4a_transformation_depth_image_to_point_cloud(m_transform,
             m_depthImage, K4A_CALIBRATION_TYPE_DEPTH, m_pclImage)) {
-        throw std::runtime_error("Failed to compute point cloud.");
+        throw std::runtime_error(
+            "Failed to transform depth image to point cloud image!");
     }
 
-    switch (TRANSFORMATION_TYPE) {
-    case 1: {
+    switch (transformType) {
 
-        /** transform rgb image to depth image: RGB_TO_DEPTH */
+    /** RGB -> DEPTH */
+    case 1: {
         if (K4A_RESULT_SUCCEEDED
             != k4a_transformation_color_image_to_depth_camera(
-                m_transform, m_depthImage, m_rgbImage, m_transformedRgbImage)) {
-            throw std::runtime_error("Failed to create point cloud image!");
+                m_transform, m_depthImage, m_rgbImage, m_rgb2depthImage)) {
+            throw std::runtime_error(
+                "Failed to create rgb2depth point cloud image!");
         }
-        // /** dev option: write rgb-depth ply file */
-        // const std::string c2d = io::pwd() + "/output/color2depth.ply";
-        // ply::write(m_pclLowerBoundary, m_pclUpperBoundary, m_pclImage,
-        //     m_transformedRgbImage, c2d);
+        /** dev option: */
+        // m_file = path + "/output/rgb2depth.ply";
+        // ply::write(m_pclImage, m_rgb2depthImage, m_file);
         break;
     }
 
+    /** DEPTH -> RGB */
     case 2: {
-
-        /** transform depth image into color image: DEPTH_TO_RGB */
         int colorWidth = k4a_image_get_width_pixels(m_rgbImage);
         int colorHeight = k4a_image_get_height_pixels(m_rgbImage);
 
-        m_transformedDepthImage = nullptr;
+        /** initialize depth2rgb image using rgb image dimensions */
+        m_depth2rgbImage = nullptr;
         if (K4A_RESULT_SUCCEEDED
             != k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, colorWidth,
                 colorHeight, colorWidth * (int)sizeof(uint16_t),
-                &m_transformedDepthImage)) {
+                &m_depth2rgbImage)) {
             throw std::runtime_error(
-                "Failed to create transformed dept image!");
+                "Failed to initialize depth2rgb point cloud image!");
         }
 
+        /** re-initialize pcl image using rgb image dimensions */
         m_pclImage = nullptr;
         if (K4A_RESULT_SUCCEEDED
             != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, colorWidth,
                 colorHeight, colorWidth * 3 * (int)sizeof(int16_t),
                 &m_pclImage)) {
-            throw std::runtime_error("Failed to create point cloud image!");
+            throw std::runtime_error("Failed to initialize point cloud image "
+                                     "using rgb image dimensions!");
         }
 
+        /** transform: depth -> rgb */
         if (K4A_RESULT_SUCCEEDED
             != k4a_transformation_depth_image_to_color_camera(
-                m_transform, m_depthImage, m_transformedDepthImage)) {
+                m_transform, m_depthImage, m_depth2rgbImage)) {
             throw std::runtime_error(
-                "Failed to create transformed depth image!");
+                "Failed to create depth2rgb point cloud image!");
         }
 
+        /** transform: depth -> point cloud */
         if (K4A_RESULT_SUCCEEDED
             != k4a_transformation_depth_image_to_point_cloud(m_transform,
-                m_transformedDepthImage, K4A_CALIBRATION_TYPE_COLOR,
-                m_pclImage)) {
+                m_depth2rgbImage, K4A_CALIBRATION_TYPE_COLOR, m_pclImage)) {
             throw std::runtime_error("Failed to compute point cloud!");
         }
-        // /** dev option write depth-rgb ply file */
-        // const std::string d2c = io::pwd() + "/output/depth2color.ply";
-        // ply::write(m_pclImage, m_transformedRgbImage, d2c);
+        /** dev option: */
+        // m_file = path + "/output/depth2rgb.ply";
+        // ply::write(m_pclImage, m_depth2rgbImage, m_file);
         break;
     }
     default: {
@@ -188,15 +169,14 @@ void Kinect::transform(const int& TRANSFORMATION_TYPE)
 
 /** transformation options for kinect */
 
-void Kinect::capturePcl(const int& TYPE_OF_TRANSFORMATION)
+void Kinect::record(const int& transformType)
 {
-    /** block threads from accessing resources
-     *  during capture and transformation */
+    /** block threads from accessing
+     *  resources during recording */
     std::lock_guard<std::mutex> lck(m_mutex);
-    getCapture();
-    transform(TYPE_OF_TRANSFORMATION);
-    defineContext();
-    // release();
+    capture();
+    transform(transformType);
+    construct();
 }
 
 std::shared_ptr<std::vector<float>> Kinect::getPcl()
@@ -206,25 +186,11 @@ std::shared_ptr<std::vector<float>> Kinect::getPcl()
     return sptr_pcl;
 }
 
-k4a_image_t Kinect::getTransformedRgb()
-{
-    /** allow multiple threads to read transformed rgb image*/
-    std::shared_lock lock(s_mutex);
-    return m_transformedRgbImage;
-}
-
 std::shared_ptr<std::vector<uint8_t>> Kinect::getColor()
 {
     /** allow multiple threads to read pcl color */
     std::shared_lock lock(s_mutex);
     return sptr_color;
-}
-
-k4a_image_t Kinect::getTransformedDepth()
-{
-    /** allow multiple threads to read transformed rgb image*/
-    std::shared_lock lock(s_mutex);
-    return m_transformedDepthImage;
 }
 
 std::shared_ptr<std::vector<float>> Kinect::getContext()
@@ -234,13 +200,13 @@ std::shared_ptr<std::vector<float>> Kinect::getContext()
     return sptr_context;
 }
 
-void Kinect::setContextBounds(std::pair<Point, Point> threshold)
+void Kinect::setContextBounds(const std::pair<Point, Point>& threshold)
 {
     /** dis-allow threads from accessing
      *  resources during context definition */
     std::unique_lock lock(s_mutex);
-    m_pclLowerBoundary = threshold.first;
-    m_pclUpperBoundary = threshold.second;
+    m_contextLower = threshold.first;
+    m_contextUpper = threshold.second;
 }
 
 int Kinect::getNumPoints()
@@ -264,16 +230,17 @@ void Kinect::release() const
     if (m_pclImage != nullptr) {
         k4a_image_release(m_pclImage);
     }
-    if (m_transformedRgbImage != nullptr) {
-        k4a_image_release(m_transformedRgbImage);
+    if (m_rgb2depthImage != nullptr) {
+        k4a_image_release(m_rgb2depthImage);
     }
-    if (m_transformedDepthImage != nullptr) {
-        k4a_image_release(m_transformedDepthImage);
+    if (m_depth2rgbImage != nullptr) {
+        k4a_image_release(m_depth2rgbImage);
     }
 }
 
 void Kinect::close() const
 {
+    // todo: destroying this nonchalant yields undesired results
     // if (m_transform != nullptr) {
     //     k4a_transformation_destroy(m_transform);
     // }
@@ -292,29 +259,33 @@ Kinect::Kinect()
     m_timeout = deviceConf.TIMEOUT;
 
     /** initialize boundless interaction context */
-    m_pclLowerBoundary = Point(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
-    m_pclUpperBoundary = Point(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
+    m_contextLower = Point(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
+    m_contextUpper = Point(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
 
-    /** open kinect, calibrate device, start cameras, and get transform */
+    /** check for kinect */
     uint32_t deviceCount = k4a_device_get_installed_count();
     if (deviceCount == 0) {
         throw std::runtime_error("No device found!");
     }
+    /** open kinect */
     if (K4A_RESULT_SUCCEEDED
         != k4a_device_open(K4A_DEVICE_DEFAULT, &m_device)) {
         throw std::runtime_error("Unable to open device!");
     }
+    /** calibrate */
     if (K4A_RESULT_SUCCEEDED
         != k4a_device_get_calibration(m_device, deviceConf.m_config.depth_mode,
             deviceConf.m_config.color_resolution, &m_calibration)) {
         throw std::runtime_error("Unable to calibrate!");
     }
+    /** start cameras */
     if (K4A_RESULT_SUCCEEDED
         != k4a_device_start_cameras(m_device, &deviceConf.m_config)) {
         throw std::runtime_error("Failed to start cameras!");
     }
+    /** get transform */
     m_transform = k4a_transformation_create(&m_calibration);
 
     /** capture dry run */
-    getCapture();
+    capture();
 }

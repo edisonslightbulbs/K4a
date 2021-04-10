@@ -10,20 +10,30 @@ void Kinect::construct()
     auto* pclData = (int16_t*)(void*)k4a_image_get_buffer(m_pclImage);
     uint8_t* colorData = k4a_image_get_buffer(m_rgb2depthImage);
 
+    std::vector<float> segment(m_numPoints * 3);
     for (int i = 0; i < m_numPoints; i++) {
         if (pclData[3 * i + 2] == 0) {
+            (*sptr_pcl)[3 * i + 0] = 0.0f;
+            (*sptr_pcl)[3 * i + 1] = 0.0f;
+            (*sptr_pcl)[3 * i + 2] = 0.0f;
+
+            /** kinect color reversed! */
+            (*sptr_color)[3 * i + 2] = colorData[4 * i + 0];
+            (*sptr_color)[3 * i + 1] = colorData[4 * i + 1];
+            (*sptr_color)[3 * i + 0] = colorData[4 * i + 2];
             continue;
         }
-        /** build raw point cloud */
         (*sptr_pcl)[3 * i + 0] = (float)pclData[3 * i + 0];
         (*sptr_pcl)[3 * i + 1] = (float)pclData[3 * i + 1];
         (*sptr_pcl)[3 * i + 2] = (float)pclData[3 * i + 2];
-
-        /** build color n.b., kinect color reversed! */
         (*sptr_color)[3 * i + 2] = colorData[4 * i + 0];
         (*sptr_color)[3 * i + 1] = colorData[4 * i + 1];
         (*sptr_color)[3 * i + 0] = colorData[4 * i + 2];
 
+        if (m_contextUpper.m_z == __FLT_MAX__
+            || m_contextLower.m_z == __FLT_MIN__) {
+            continue;
+        }
         /** filter interaction context */
         if ((float)pclData[3 * i + 0] > m_contextUpper.m_x
             || (float)pclData[3 * i + 0] < m_contextLower.m_x
@@ -33,16 +43,18 @@ void Kinect::construct()
             || (float)pclData[3 * i + 2] < m_contextLower.m_z) {
             continue;
         }
-        (*sptr_context)[3 * i + 0] = (float)pclData[3 * i + 0];
-        (*sptr_context)[3 * i + 1] = (float)pclData[3 * i + 1];
-        (*sptr_context)[3 * i + 2] = (float)pclData[3 * i + 2];
+        segment[3 * i + 0] = (float)pclData[3 * i + 0];
+        segment[3 * i + 1] = (float)pclData[3 * i + 1];
+        segment[3 * i + 2] = (float)pclData[3 * i + 2];
     }
-
     /** iff context boundaries are not set default to full point cloud */
     if (m_contextUpper.m_z == __FLT_MAX__
         || m_contextLower.m_z == __FLT_MIN__) {
         *sptr_context = *sptr_pcl;
+    } else {
+        *sptr_context = segment;
     }
+    // todo: tidy up
 }
 
 void Kinect::capture()

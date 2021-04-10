@@ -11,16 +11,16 @@
 
 /**
  * @struct DEVICE_CONF
- *    Class-like single container for all kinect config
+ *    Single container for all kinect config
+ *
  * @b Reference
  *    https://docs.microsoft.com/en-us/azure/kinect-dk/hardware-specification#depth-camera-supported-operating-modes
  */
-struct DEVICE_CONF {
-
+struct t_config {
     const int32_t TIMEOUT = 1000;
     k4a_device_t m_device = nullptr;
     k4a_device_configuration_t m_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-    DEVICE_CONF()
+    t_config()
     {
         // m_config.color_resolution = K4A_COLOR_RESOLUTION_2160P;
         // m_config.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
@@ -32,7 +32,6 @@ struct DEVICE_CONF {
     }
 };
 
-extern const int FAST_PCL;
 extern const int RGB_TO_DEPTH;
 extern const int DEPTH_TO_RGB;
 
@@ -50,16 +49,20 @@ public:
     /** image resolution */
     int m_numPoints = 640 * 576;
 
-    /** initialize device config */
+    /** device config */
     int32_t m_timeout = 0;
     k4a_device_t m_device;
+
+    /** k4a images */
     k4a_image_t m_rgbImage = nullptr;
     k4a_image_t m_pclImage = nullptr;
-    k4a_capture_t m_capture = nullptr;
     k4a_image_t m_depthImage = nullptr;
-    k4a_calibration_t m_calibration {};
     k4a_image_t m_rgb2depthImage = nullptr;
     k4a_image_t m_depth2rgbImage = nullptr;
+
+    /** k4a capture, calibration, and transformation */
+    k4a_capture_t m_capture = nullptr;
+    k4a_calibration_t m_calibration {};
     k4a_transformation_t m_transform = nullptr;
 
     /** context boundary */
@@ -107,22 +110,31 @@ public:
      *   Retrieve raw/unprocessed point cloud points.
      *
      *  @retval
-     *     Point cloud corresponding to interaction context.
+     *     Raw point cloud.
      */
     std::shared_ptr<std::vector<float>> getPcl();
+
+    /**
+     * getColor
+     *   Retrieves point cloud color.
+     *
+     *  @retval
+     *     Point cloud color.
+     */
+    std::shared_ptr<std::vector<uint8_t>> getColor();
 
     /**
      * getContext
      *   Retrieve interaction context point cloud.
      *
      *  @retval
-     *     Point cloud corresponding to interaction context.
+     *     Point cloud corresponding to context segment.
      */
     std::shared_ptr<std::vector<float>> getContext();
 
     /**
      * setContextBounds
-     *   Define interaction context boundary.
+     *   Sets min and max points of context boundary.
      *
      *  @param threshold
      *    Pair of points { min, max } corresponding to the
@@ -132,19 +144,30 @@ public:
 
     /**
      * record
-     *   Capture and transform next point cloud frame
+     *   Records a frame using the kinect.
+     *
+     *  @param transformType
+     *    Specification of transformation type:
+     *      option 1: RGB_TO_DEPTH
+     *      option 2: DEPTH_TO_RGB
      */
     void record(const int& transformType);
 
     /**
+     * constructPcl
+     *    Constructs a point cloud using  a transformation type.
+     */
+    void constructPcl();
+
+    /**
      * close
-     *   Closes connection to device.
+     *   Closes connection to kinect.
      */
     void close() const;
 
     /**
-     * close
-     *   Releases device resources.
+     * release
+     *   Releases kinect resources.
      */
     void release() const;
 
@@ -159,9 +182,5 @@ public:
      *   Destroy kinect object
      */
     ~Kinect();
-
-    void construct();
-
-    std::shared_ptr<std::vector<uint8_t>> getColor();
 };
 #endif /* KINECT_H */

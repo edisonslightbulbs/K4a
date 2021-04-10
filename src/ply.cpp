@@ -7,13 +7,28 @@
 #include "ply.h"
 #include "point.h"
 
+#define PLY_HEADER                                                             \
+    std::ofstream ofs(FILE);                                                   \
+    ofs << "ply" << std::endl;                                                 \
+    ofs << "format ascii 1.0" << std::endl;                                    \
+    ofs << "element vertex"                                                    \
+        << " " << points.size() << std::endl;                                  \
+    ofs << "property float x" << std::endl;                                    \
+    ofs << "property float y" << std::endl;                                    \
+    ofs << "property float z" << std::endl;                                    \
+    ofs << "property uchar red" << std::endl;                                  \
+    ofs << "property uchar green" << std::endl;                                \
+    ofs << "property uchar blue" << std::endl;                                 \
+    ofs << "end_header" << std::endl;                                          \
+    ofs.close();
+
 struct t_rgbPoint {
     int16_t xyz[3];
     uint8_t rgb[3];
 };
 
 void ply::write(const k4a_image_t& pclImage, const k4a_image_t& rgbImage,
-    const std::string& file)
+    const std::string& FILE)
 {
     std::vector<t_rgbPoint> points;
     int width = k4a_image_get_width_pixels(pclImage);
@@ -42,21 +57,8 @@ void ply::write(const k4a_image_t& pclImage, const k4a_image_t& rgbImage,
         }
         points.push_back(point);
     }
-
-    std::ofstream ofs(file);
-    ofs << "ply" << std::endl;
-    ofs << "format ascii 1.0" << std::endl;
-    ofs << "element vertex"
-        << " " << points.size() << std::endl;
-    ofs << "property float x" << std::endl;
-    ofs << "property float y" << std::endl;
-    ofs << "property float z" << std::endl;
-    ofs << "property uchar red" << std::endl;
-    ofs << "property uchar green" << std::endl;
-    ofs << "property uchar blue" << std::endl;
-    ofs << "end_header" << std::endl;
-    ofs.close();
-
+    /** write to file */
+    PLY_HEADER;
     std::stringstream ss;
     for (auto& point : points) {
         // image data is BGR
@@ -66,31 +68,30 @@ void ply::write(const k4a_image_t& pclImage, const k4a_image_t& rgbImage,
            << (float)point.rgb[0];
         ss << std::endl;
     }
-    std::ofstream ofs_text(file, std::ios::out | std::ios::app);
+    std::ofstream ofs_text(FILE, std::ios::out | std::ios::app);
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }
 
 std::vector<Point> colorize(
-    std::vector<Point>& raw, std::vector<Point>& segment)
+    std::vector<Point>& pcl, std::vector<Point>& context)
 {
-    Point centroid = Point::centroid(segment);
+    Point centroid = Point::centroid(context);
 
-    for (auto& point : raw) {
+    for (auto& point : pcl) {
         point.m_distance.second = point.distance(centroid);
     }
-
-    for (auto& point : segment) {
+    for (auto& point : context) {
         point.m_distance.second = point.distance(centroid);
     }
 
     const int CONTEXT_CLUSTER = 100; // <- random value
 
     std::set<Point> colorizedContext;
-    for (auto& point : segment) {
+    for (auto& point : context) {
         point.m_cluster = CONTEXT_CLUSTER;
         colorizedContext.insert(point);
     }
-    for (auto& point : raw) {
+    for (auto& point : pcl) {
         colorizedContext.insert(point);
     }
     std::vector<Point> colorized;
@@ -101,20 +102,10 @@ std::vector<Point> colorize(
 void ply::write(std::vector<Point>& raw, std::vector<Point>& context)
 {
     std::vector<Point> points = colorize(raw, context);
-    const std::string OUTPUT_PATH = io::pwd() + "/output/context.ply";
-    std::ofstream ofs(OUTPUT_PATH);
-    ofs << "ply" << std::endl;
-    ofs << "format ascii 1.0" << std::endl;
-    ofs << "element vertex " << points.size() << std::endl;
-    ofs << "property float x" << std::endl;
-    ofs << "property float y" << std::endl;
-    ofs << "property float z" << std::endl;
-    ofs << "property uchar diffuse_red" << std::endl;
-    ofs << "property uchar diffuse_green" << std::endl;
-    ofs << "property uchar diffuse_blue" << std::endl;
-    ofs << "end_header" << std::endl;
-    ofs.close();
+    const std::string FILE = io::pwd() + "/output/context.ply";
 
+    /** write to file */
+    PLY_HEADER;
     std::stringstream ss;
     for (const auto& point : points) {
         if (point.m_cluster == 100) {
@@ -126,26 +117,16 @@ void ply::write(std::vector<Point>& raw, std::vector<Point>& context)
         ss << " " << 0 << " " << 0 << " " << 0;
         ss << std::endl;
     }
-    std::ofstream ofs_text(OUTPUT_PATH, std::ios::out | std::ios::app);
+    std::ofstream ofs_text(FILE, std::ios::out | std::ios::app);
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }
 
 void ply::write(std::vector<Point>& points)
 {
-    const std::string OUTPUT_PATH = io::pwd() + "/output/context.ply";
-    std::ofstream ofs(OUTPUT_PATH);
-    ofs << "ply" << std::endl;
-    ofs << "format ascii 1.0" << std::endl;
-    ofs << "element vertex " << points.size() << std::endl;
-    ofs << "property float x" << std::endl;
-    ofs << "property float y" << std::endl;
-    ofs << "property float z" << std::endl;
-    ofs << "property uchar diffuse_red" << std::endl;
-    ofs << "property uchar diffuse_green" << std::endl;
-    ofs << "property uchar diffuse_blue" << std::endl;
-    ofs << "end_header" << std::endl;
-    ofs.close();
+    const std::string FILE = io::pwd() + "/output/context.ply";
 
+    /** write to file */
+    PLY_HEADER;
     std::stringstream ss;
     for (const auto& point : points) {
         ss << point.m_x << " " << point.m_y << " " << point.m_z;
@@ -153,6 +134,6 @@ void ply::write(std::vector<Point>& points)
            << " " << (float)point.m_rgb[2];
         ss << std::endl;
     }
-    std::ofstream ofs_text(OUTPUT_PATH, std::ios::out | std::ios::app);
+    std::ofstream ofs_text(FILE, std::ios::out | std::ios::app);
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }

@@ -1,7 +1,6 @@
 #include "kinect.h"
 #include "io.h"
 #include "ply.h"
-#define path io::pwd()
 
 extern std::shared_ptr<bool> RUN_SYSTEM;
 extern const int RGB_TO_DEPTH = 1;
@@ -32,17 +31,17 @@ void Kinect::constructPcl()
         (*sptr_color)[3 * i + 1] = colorData[4 * i + 1];
         (*sptr_color)[3 * i + 0] = colorData[4 * i + 2];
 
-        if (m_contextUpper.m_z == __FLT_MAX__
-            || m_contextLower.m_z == __FLT_MIN__) {
+        if (m_contextUpper.m_xyz[2] == __FLT_MAX__
+            || m_contextLower.m_xyz[2] == __FLT_MIN__) {
             continue;
         }
         /** filter interaction context */
-        if ((float)pclData[3 * i + 0] > m_contextUpper.m_x
-            || (float)pclData[3 * i + 0] < m_contextLower.m_x
-            || (float)pclData[3 * i + 1] > m_contextUpper.m_y
-            || (float)pclData[3 * i + 1] < m_contextLower.m_y
-            || (float)pclData[3 * i + 2] > m_contextUpper.m_z
-            || (float)pclData[3 * i + 2] < m_contextLower.m_z) {
+        if ((float)pclData[3 * i + 0] > m_contextUpper.m_xyz[0]
+            || (float)pclData[3 * i + 0] < m_contextLower.m_xyz[0]
+            || (float)pclData[3 * i + 1] > m_contextUpper.m_xyz[1]
+            || (float)pclData[3 * i + 1] < m_contextLower.m_xyz[1]
+            || (float)pclData[3 * i + 2] > m_contextUpper.m_xyz[2]
+            || (float)pclData[3 * i + 2] < m_contextLower.m_xyz[2]) {
             continue;
         }
         segment[3 * i + 0] = (float)pclData[3 * i + 0];
@@ -52,8 +51,8 @@ void Kinect::constructPcl()
 
     /** Iff context boundaries are not set, default to full point cloud */
     // todo: tidy up
-    if (m_contextUpper.m_z == __FLT_MAX__
-        || m_contextLower.m_z == __FLT_MIN__) {
+    if (m_contextUpper.m_xyz[2] == __FLT_MAX__
+        || m_contextLower.m_xyz[2] == __FLT_MIN__) {
         *sptr_context = *sptr_pcl;
     } else {
         *sptr_context = segment;

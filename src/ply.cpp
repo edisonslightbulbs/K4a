@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <sstream>
 #include <vector>
 
 #include "io.h"
@@ -11,7 +12,8 @@
     std::ofstream ofs(FILE);                                                   \
     ofs << "ply" << std::endl;                                                 \
     ofs << "format ascii 1.0" << std::endl;                                    \
-    ofs << "element vertex" << " " << points.size() << std::endl;              \
+    ofs << "element vertex"                                                    \
+        << " " << points.size() << std::endl;                                  \
     ofs << "property float x" << std::endl;                                    \
     ofs << "property float y" << std::endl;                                    \
     ofs << "property float z" << std::endl;                                    \
@@ -20,17 +22,6 @@
     ofs << "property uchar blue" << std::endl;                                 \
     ofs << "end_header" << std::endl;                                          \
     ofs.close()
-
-#define red " 215 48 39"
-#define orange " 244 109 67"
-#define gold " 253 173 97"
-#define brown " 254 224 144"
-#define yellow " 255 255 191"
-#define sky " 224 243 248"
-#define ocean " 171 217 233"
-#define blue " 116 173 209"
-#define deep " 69 117 180"
-#define black " 0 0 0"
 
 struct t_rgbPoint {
     int16_t xyz[3];
@@ -119,12 +110,12 @@ void ply::write(std::vector<Point>& raw, std::vector<Point>& context)
     std::stringstream ss;
     for (const auto& point : points) {
         if (point.m_cluster == 100) {
-            ss << point.m_x << " " << point.m_y << " " << point.m_z
-               << " 174 1 126" << std::endl;
+            ss << point.m_xyz[0] << " " << point.m_xyz[1] << " "
+               << point.m_xyz[2] << " 174 1 126" << std::endl;
             continue;
         }
-        ss << point.m_x << " " << point.m_y << " " << point.m_z;
-        ss << " " << 0 << " " << 0 << " " << 0 << std::endl;
+        ss << point.m_xyz[0] << " " << point.m_xyz[1] << " " << point.m_xyz[2];
+        ss << " 0 0 0" << std::endl;
     }
     std::ofstream ofs_text(FILE, std::ios::out | std::ios::app);
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
@@ -138,48 +129,8 @@ void ply::write(std::vector<Point>& points)
     PLY_HEADER;
     std::stringstream ss;
     for (const auto& point : points) {
-        switch(point.m_cluster){
-            case 0:
-                ss << point.m_x << " " << point.m_y << " " << point.m_z;
-                ss << red << std::endl;
-                break;
-            case 1:
-                ss << point.m_x << " " << point.m_y << " " << point.m_z;
-                ss << blue << std::endl;
-                break;
-            case 2:
-                ss << point.m_x << " " << point.m_y << " " << point.m_z;
-                ss << brown << std::endl;
-                break;
-            case 3:
-                ss << point.m_x << " " << point.m_y << " " << point.m_z;
-                ss << deep << std::endl;
-                break;
-            case 4:
-                ss << point.m_x << " " << point.m_y << " " << point.m_z;
-                ss << orange << std::endl;
-                break;
-            case 5:
-                ss << point.m_x << " " << point.m_y << " " << point.m_z;
-                ss << gold << std::endl;
-                break;
-            case 6:
-                ss << point.m_x << " " << point.m_y << " " << point.m_z;
-                ss << yellow << std::endl;
-                break;
-            case 7:
-                ss << point.m_x << " " << point.m_y << " " << point.m_z;
-                ss << sky << std::endl;
-                break;
-            case 8:
-                ss << point.m_x << " " << point.m_y << " " << point.m_z;
-                ss << ocean << std::endl;
-                break;
-            default:
-                ss << point.m_x << " " << point.m_y << " " << point.m_z;
-                ss << black << std::endl;
-                break;
-        }
+        ss << point.m_xyz[0] << " " << point.m_xyz[1] << " " << point.m_xyz[2];
+        ss << " 0 0 0" << std::endl;
     }
     std::ofstream ofs_text(FILE, std::ios::out | std::ios::app);
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());

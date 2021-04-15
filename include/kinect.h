@@ -22,10 +22,14 @@ struct t_config {
     k4a_device_configuration_t m_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
     t_config()
     {
-                // m_config.color_resolution = K4A_COLOR_RESOLUTION_2160P;
+        // /** option A: for fast point cloud */
+        // m_config.color_resolution = K4A_COLOR_RESOLUTION_2160P;
         // m_config.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
+
+        /** option B: for real-time rendering  */
         m_config.color_resolution = K4A_COLOR_RESOLUTION_720P;
         m_config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+
         m_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
         m_config.camera_fps = K4A_FRAMES_PER_SECOND_30;
         m_config.synchronized_images_only = true;

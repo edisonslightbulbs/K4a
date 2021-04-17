@@ -3,6 +3,7 @@
 #include "ply.h"
 
 extern std::shared_ptr<bool> RUN_SYSTEM;
+
 extern const int RGB_TO_DEPTH = 1;
 extern const int DEPTH_TO_RGB = 2;
 
@@ -105,6 +106,7 @@ void Kinect::capture()
                                  "depth image dimensions!");
     }
 }
+
 void Kinect::transform(const int& transformType)
 {
     /** DEPTH -> POINT CLOUD */

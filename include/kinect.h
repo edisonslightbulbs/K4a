@@ -128,7 +128,7 @@ public:
     std::shared_ptr<std::vector<uint8_t>> getColor();
 
     /**
-     * getContext
+     * get
      *   Retrieve interaction context point cloud.
      *
      *  @retval

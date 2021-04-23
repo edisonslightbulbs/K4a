@@ -22,7 +22,7 @@ struct t_config {
     k4a_device_configuration_t m_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
     t_config()
     {
-        // /** option A: for fast point cloud */
+        /**  for fast point cloud, use: */
         // m_config.color_resolution = K4A_COLOR_RESOLUTION_2160P;
         // m_config.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
 
@@ -48,7 +48,6 @@ class Kinect {
 public:
     /** thread guards */
     std::mutex m_mutex;
-    std::shared_mutex s_mutex;
 
     /** image resolution */
     int m_numPoints = 640 * 576;
@@ -69,24 +68,8 @@ public:
     k4a_calibration_t m_calibration {};
     k4a_transformation_t m_transform = nullptr;
 
-    /** context boundary */
-    Point m_contextLower;
-    Point m_contextUpper;
-
-    /** pcl: unsegmented */
-    std::shared_ptr<std::vector<float>> sptr_pcl
-        = std::make_shared<std::vector<float>>(m_numPoints * 3);
-
-    /** pcl: segmented */
-    std::shared_ptr<std::vector<float>> sptr_context
-        = std::make_shared<std::vector<float>>(m_numPoints * 3);
-
-    /** pcl color */
-    std::shared_ptr<std::vector<uint8_t>> sptr_color
-        = std::make_shared<std::vector<uint8_t>>(m_numPoints * 3);
-
     /** output PLY file */
-    std::string m_file;
+    // std::string m_file;
 
     /**
      * capture
@@ -104,49 +87,6 @@ public:
     void transform(const int& transformType);
 
     /**
-     * getNumPoints
-     *   Retrieve point cloud image resolution.
-     */
-    int getNumPoints();
-
-    /**
-     * getPcl
-     *   Retrieve raw/unprocessed point cloud points.
-     *
-     *  @retval
-     *     Raw point cloud.
-     */
-    std::shared_ptr<std::vector<float>> getPcl();
-
-    /**
-     * getColor
-     *   Retrieves point cloud color.
-     *
-     *  @retval
-     *     Point cloud color.
-     */
-    std::shared_ptr<std::vector<uint8_t>> getColor();
-
-    /**
-     * get
-     *   Retrieve interaction context point cloud.
-     *
-     *  @retval
-     *     Point cloud corresponding to context segment.
-     */
-    std::shared_ptr<std::vector<float>> getContext();
-
-    /**
-     * setContextBounds
-     *   Sets min and max points of context boundary.
-     *
-     *  @param threshold
-     *    Pair of points { min, max } corresponding to the
-     *    lower-bound and lower-bound of interaction context.
-     */
-    void setContextBounds(const std::pair<Point, Point>& threshold);
-
-    /**
      * record
      *   Records a frame using the kinect.
      *
@@ -155,13 +95,7 @@ public:
      *      option 1: RGB_TO_DEPTH
      *      option 2: DEPTH_TO_RGB
      */
-    void record(const int& transformType);
-
-    /**
-     * constructPcl
-     *    Constructs a point cloud using  a transformation type.
-     */
-    void constructPcl();
+    void getFrame(const int& transformType);
 
     /**
      * close
@@ -186,5 +120,9 @@ public:
      *   Destroy kinect object
      */
     ~Kinect();
+
+    k4a_image_t getRgb2DepthImage();
+
+    k4a_image_t getPclImage();
 };
 #endif /* KINECT_H */

@@ -1,64 +1,9 @@
 #include "kinect.h"
 #include "io.h"
-#include "ply.h"
-
-extern std::shared_ptr<bool> RUN_SYSTEM;
+//#include "ply.h"
 
 extern const int RGB_TO_DEPTH = 1;
 extern const int DEPTH_TO_RGB = 2;
-
-void Kinect::constructPcl()
-{
-    auto* pclData = (int16_t*)(void*)k4a_image_get_buffer(m_pclImage);
-    uint8_t* colorData = k4a_image_get_buffer(m_rgb2depthImage);
-
-    std::vector<float> segment(m_numPoints * 3);
-    for (int i = 0; i < m_numPoints; i++) {
-        if (pclData[3 * i + 2] == 0) {
-            (*sptr_pcl)[3 * i + 0] = 0.0f;
-            (*sptr_pcl)[3 * i + 1] = 0.0f;
-            (*sptr_pcl)[3 * i + 2] = 0.0f;
-
-            /** kinect color reversed! */
-            (*sptr_color)[3 * i + 2] = colorData[4 * i + 0];
-            (*sptr_color)[3 * i + 1] = colorData[4 * i + 1];
-            (*sptr_color)[3 * i + 0] = colorData[4 * i + 2];
-            continue;
-        }
-        (*sptr_pcl)[3 * i + 0] = (float)pclData[3 * i + 0];
-        (*sptr_pcl)[3 * i + 1] = (float)pclData[3 * i + 1];
-        (*sptr_pcl)[3 * i + 2] = (float)pclData[3 * i + 2];
-        (*sptr_color)[3 * i + 2] = colorData[4 * i + 0];
-        (*sptr_color)[3 * i + 1] = colorData[4 * i + 1];
-        (*sptr_color)[3 * i + 0] = colorData[4 * i + 2];
-
-        if (m_contextUpper.m_xyz[2] == __FLT_MAX__
-            || m_contextLower.m_xyz[2] == __FLT_MIN__) {
-            continue;
-        }
-        /** filter interaction context */
-        if ((float)pclData[3 * i + 0] > m_contextUpper.m_xyz[0]
-            || (float)pclData[3 * i + 0] < m_contextLower.m_xyz[0]
-            || (float)pclData[3 * i + 1] > m_contextUpper.m_xyz[1]
-            || (float)pclData[3 * i + 1] < m_contextLower.m_xyz[1]
-            || (float)pclData[3 * i + 2] > m_contextUpper.m_xyz[2]
-            || (float)pclData[3 * i + 2] < m_contextLower.m_xyz[2]) {
-            continue;
-        }
-        segment[3 * i + 0] = (float)pclData[3 * i + 0];
-        segment[3 * i + 1] = (float)pclData[3 * i + 1];
-        segment[3 * i + 2] = (float)pclData[3 * i + 2];
-    }
-
-    /** Iff context boundaries are not set, default to full point cloud */
-    // todo: tidy up
-    if (m_contextUpper.m_xyz[2] == __FLT_MAX__
-        || m_contextLower.m_xyz[2] == __FLT_MIN__) {
-        *sptr_context = *sptr_pcl;
-    } else {
-        *sptr_context = segment;
-    }
-}
 
 void Kinect::capture()
 {
@@ -178,51 +123,25 @@ void Kinect::transform(const int& transformType)
     }
 }
 
-void Kinect::record(const int& transformType)
+k4a_image_t Kinect::getPclImage()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return m_pclImage;
+}
+
+k4a_image_t Kinect::getRgb2DepthImage()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return m_rgb2depthImage;
+}
+
+void Kinect::getFrame(const int& transformType)
 {
     /** block threads from accessing
      *  resources during recording */
     std::lock_guard<std::mutex> lck(m_mutex);
     capture();
     transform(transformType);
-    constructPcl();
-}
-
-std::shared_ptr<std::vector<float>> Kinect::getPcl()
-{
-    /** allow multiple threads to read unfiltered point cloud */
-    std::shared_lock lock(s_mutex);
-    return sptr_pcl;
-}
-
-std::shared_ptr<std::vector<uint8_t>> Kinect::getColor()
-{
-    /** allow multiple threads to read pcl color */
-    std::shared_lock lock(s_mutex);
-    return sptr_color;
-}
-
-std::shared_ptr<std::vector<float>> Kinect::getContext()
-{
-    /** allow multiple threads to read interaction context */
-    std::shared_lock lock(s_mutex);
-    return sptr_context;
-}
-
-void Kinect::setContextBounds(const std::pair<Point, Point>& threshold)
-{
-    /** dis-allow threads from accessing
-     *  resources during context definition */
-    std::unique_lock lock(s_mutex);
-    m_contextLower = threshold.first;
-    m_contextUpper = threshold.second;
-}
-
-int Kinect::getNumPoints()
-{
-    /** allow multiple threads to read image resolution */
-    std::shared_lock lock(s_mutex);
-    return m_numPoints;
 }
 
 void Kinect::release() const
@@ -249,7 +168,7 @@ void Kinect::release() const
 
 void Kinect::close() const
 {
-    // todo: destroying this nonchalant yields undesired results
+    // TODO: destroying this nonchalant yields undesired results
     // if (m_transform != nullptr) {
     //     k4a_transformation_destroy(m_transform);
     // }
@@ -266,10 +185,6 @@ Kinect::Kinect()
     t_config deviceConf;
     m_device = deviceConf.m_device;
     m_timeout = deviceConf.TIMEOUT;
-
-    /** initialize boundless interaction context */
-    m_contextLower = Point(__FLT_MIN__, __FLT_MIN__, __FLT_MIN__);
-    m_contextUpper = Point(__FLT_MAX__, __FLT_MAX__, __FLT_MAX__);
 
     /** check for kinect */
     uint32_t deviceCount = k4a_device_get_installed_count();

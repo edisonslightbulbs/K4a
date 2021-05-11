@@ -1,5 +1,5 @@
 #include "kinect.h"
-#include "io.h"
+//#include "io.h"
 //#include "ply.h"
 
 extern const int RGB_TO_DEPTH = 1;

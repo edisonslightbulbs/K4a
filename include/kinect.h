@@ -58,7 +58,6 @@ public:
 
     /** k4a images */
     k4a_image_t m_rgbImage = nullptr;
-    k4a_image_t m_rgbImageClone = nullptr;
     k4a_image_t m_pclImage = nullptr;
     k4a_image_t m_depthImage = nullptr;
     k4a_image_t m_rgb2depthImage = nullptr;

@@ -19,6 +19,7 @@ void Kinect::capture()
 
     /** capture colour image */
     m_rgbImage = k4a_capture_get_color_image(m_capture);
+    m_rgbImageCopy = k4a_capture_get_color_image(m_capture);
     if (m_rgbImage == nullptr) {
         throw std::runtime_error("Failed to get color image!");
     }
@@ -132,7 +133,7 @@ k4a_image_t Kinect::getPclImage()
 k4a_image_t Kinect::getRgbImage()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return m_rgbImage;
+    return m_rgbImageCopy;
 }
 
 k4a_image_t Kinect::getRgb2DepthImage()

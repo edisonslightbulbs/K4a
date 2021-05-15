@@ -58,8 +58,8 @@ void Kinect::capture()
     if (K4A_RESULT_SUCCEEDED
         != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, depthWidth, depthHeight,
             depthWidth * 3 * (int)sizeof(int16_t), &m_pcl)) {
-        throw std::runtime_error(
-            "Failed to initialize point cloud image using " /*NOLINT*/
+        throw std::runtime_error(/*NOLINT*/
+            "Failed to initialize point cloud image using "
             "depth image dimensions!");
     }
 }
@@ -113,9 +113,8 @@ void Kinect::transform(const int& transformType)
         if (K4A_RESULT_SUCCEEDED
             != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, colorWidth,
                 colorHeight, colorWidth * 3 * (int)sizeof(int16_t), &m_pcl)) {
-            throw std::runtime_error(
-                "Failed to initialize point cloud image " /*NOLINT*/
-                "using rgb image dimensions!");
+            throw std::runtime_error(/*NOLINT*/
+                "Failed to initialize point cloud image using rgb image dimensions!");
         }
         /** transform: depth -> rgb */
         if (K4A_RESULT_SUCCEEDED
@@ -128,8 +127,8 @@ void Kinect::transform(const int& transformType)
         if (K4A_RESULT_SUCCEEDED
             != k4a_transformation_depth_image_to_point_cloud(m_transform,
                 m_depth2rgbImg, K4A_CALIBRATION_TYPE_COLOR, m_pcl)) {
-            throw std::runtime_error(
-                "Failed to compute point cloud!"); /*NOLINT*/
+            throw std::runtime_error(/*NOLINT*/
+                "Failed to compute point cloud!");
         }
         /** dev option: */
         // m_file = path + "/output/depth2rgb.ply";

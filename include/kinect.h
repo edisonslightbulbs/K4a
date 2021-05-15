@@ -63,10 +63,6 @@ public:
     k4a_image_t m_rgb2depthImg = nullptr;
     k4a_image_t m_depth2rgbImg = nullptr;
 
-    /** k4a image clones  */
-    k4a_image_t m_depthImgClone = nullptr;
-    k4a_image_t m_rgb2depthImgClone = nullptr;
-
     /** k4a capture, calibration, and transformation */
     k4a_capture_t m_capture = nullptr;
     k4a_calibration_t m_calibration {};
@@ -127,14 +123,11 @@ public:
 
     k4a_image_t getRgb2DepthImg();
 
-    k4a_image_t getRgb2DepthImgClone();
 
     k4a_image_t getDepthImg();
 
-    k4a_image_t getDepthImgClone();
 
     k4a_image_t getPcl();
 
-    void releaseClones();
 };
 #endif /* KINECT_H */

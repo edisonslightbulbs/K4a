@@ -57,12 +57,15 @@ public:
     k4a_device_t m_device;
 
     /** k4a images */
-    k4a_image_t m_rgbImage = nullptr;
-    k4a_image_t m_rgbImageCopy = nullptr;
-    k4a_image_t m_pclImage = nullptr;
-    k4a_image_t m_depthImage = nullptr;
-    k4a_image_t m_rgb2depthImage = nullptr;
-    k4a_image_t m_depth2rgbImage = nullptr;
+    k4a_image_t m_pcl = nullptr;
+    k4a_image_t m_rgbImg = nullptr;
+    k4a_image_t m_depthImg = nullptr;
+    k4a_image_t m_rgb2depthImg = nullptr;
+    k4a_image_t m_depth2rgbImg = nullptr;
+
+    /** k4a image clones  */
+    k4a_image_t m_depthImgClone = nullptr;
+    k4a_image_t m_rgb2depthImgClone = nullptr;
 
     /** k4a capture, calibration, and transformation */
     k4a_capture_t m_capture = nullptr;
@@ -108,7 +111,7 @@ public:
      * release
      *   Releases kinect resources.
      */
-    void release() const;
+    void release();
 
     /**
      * Kinect
@@ -122,10 +125,16 @@ public:
      */
     ~Kinect();
 
-    k4a_image_t getRgb2DepthImage();
+    k4a_image_t getRgb2DepthImg();
 
-    k4a_image_t getPclImage();
+    k4a_image_t getRgb2DepthImgClone();
 
-    k4a_image_t getRgbImage();
+    k4a_image_t getDepthImg();
+
+    k4a_image_t getDepthImgClone();
+
+    k4a_image_t getPcl();
+
+    void releaseClones();
 };
 #endif /* KINECT_H */

@@ -1,4 +1,5 @@
 #include "kinect.h"
+#include <stdexcept>
 //#include "io.h"
 //#include "ply.h"
 
@@ -18,36 +19,45 @@ void Kinect::capture()
     }
 
     /** capture colour image */
-    m_rgbImage = k4a_capture_get_color_image(m_capture);
-    m_rgbImageCopy = k4a_capture_get_color_image(m_capture);
-    if (m_rgbImage == nullptr) {
+    m_rgbImg = k4a_capture_get_color_image(m_capture);
+    if (m_rgbImg == nullptr) {
         throw std::runtime_error("Failed to get color image!");
     }
 
     /** capture depth image */
-    m_depthImage = k4a_capture_get_depth_image(m_capture);
-    if (m_depthImage == nullptr) {
+    m_depthImg = k4a_capture_get_depth_image(m_capture);
+    m_depthImgClone = k4a_capture_get_depth_image(m_capture);
+    if (m_depthImg == nullptr) {
         throw std::runtime_error("Failed to get depth image!");
     }
 
-    int depthWidth = k4a_image_get_width_pixels(m_depthImage);
-    int depthHeight = k4a_image_get_height_pixels(m_depthImage);
+    int depthWidth = k4a_image_get_width_pixels(m_depthImg);
+    int depthHeight = k4a_image_get_height_pixels(m_depthImg);
 
     /** initialize rgb image using depth image dimensions */
-    m_rgb2depthImage = nullptr;
+    m_rgb2depthImg = nullptr;
     if (K4A_RESULT_SUCCEEDED
         != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32, depthWidth,
             depthHeight, depthWidth * 4 * (int)sizeof(uint8_t),
-            &m_rgb2depthImage)) {
+            &m_rgb2depthImg)) {
+        throw std::runtime_error(
+            "Failed to initialize rgb image using depth image dimensions!");
+    }
+    /** create clone for async operations */
+    m_rgb2depthImgClone = nullptr;
+    if (K4A_RESULT_SUCCEEDED
+        != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32, depthWidth,
+            depthHeight, depthWidth * 4 * (int)sizeof(uint8_t),
+            &m_rgb2depthImgClone)) {
         throw std::runtime_error(
             "Failed to initialize rgb image using depth image dimensions!");
     }
 
     /** initialize pcl image using depth image dimensions */
-    m_pclImage = nullptr;
+    m_pcl = nullptr;
     if (K4A_RESULT_SUCCEEDED
         != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, depthWidth, depthHeight,
-            depthWidth * 3 * (int)sizeof(int16_t), &m_pclImage)) {
+            depthWidth * 3 * (int)sizeof(int16_t), &m_pcl)) {
         throw std::runtime_error("Failed to initialize point cloud image using "
                                  "depth image dimensions!");
     }
@@ -57,8 +67,8 @@ void Kinect::transform(const int& transformType)
 {
     /** DEPTH -> POINT CLOUD */
     if (K4A_RESULT_SUCCEEDED
-        != k4a_transformation_depth_image_to_point_cloud(m_transform,
-            m_depthImage, K4A_CALIBRATION_TYPE_DEPTH, m_pclImage)) {
+        != k4a_transformation_depth_image_to_point_cloud(
+            m_transform, m_depthImg, K4A_CALIBRATION_TYPE_DEPTH, m_pcl)) {
         throw std::runtime_error(
             "Failed to transform depth image to point cloud image!");
     }
@@ -68,7 +78,13 @@ void Kinect::transform(const int& transformType)
     case RGB_TO_DEPTH: {
         if (K4A_RESULT_SUCCEEDED
             != k4a_transformation_color_image_to_depth_camera(
-                m_transform, m_depthImage, m_rgbImage, m_rgb2depthImage)) {
+                m_transform, m_depthImg, m_rgbImg, m_rgb2depthImg)) {
+            throw std::runtime_error(
+                "Failed to create rgb2depth point cloud image!");
+        }
+        if (K4A_RESULT_SUCCEEDED
+            != k4a_transformation_color_image_to_depth_camera(
+                m_transform, m_depthImg, m_rgbImg, m_rgb2depthImgClone)) {
             throw std::runtime_error(
                 "Failed to create rgb2depth point cloud image!");
         }
@@ -79,38 +95,37 @@ void Kinect::transform(const int& transformType)
     }
 
     case DEPTH_TO_RGB: {
-        int colorWidth = k4a_image_get_width_pixels(m_rgbImage);
-        int colorHeight = k4a_image_get_height_pixels(m_rgbImage);
+        int colorWidth = k4a_image_get_width_pixels(m_rgbImg);
+        int colorHeight = k4a_image_get_height_pixels(m_rgbImg);
 
         /** initialize depth2rgb image using rgb image dimensions */
-        m_depth2rgbImage = nullptr;
+        m_depth2rgbImg = nullptr;
         if (K4A_RESULT_SUCCEEDED
             != k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, colorWidth,
                 colorHeight, colorWidth * (int)sizeof(uint16_t),
-                &m_depth2rgbImage)) {
+                &m_depth2rgbImg)) {
             throw std::runtime_error(
                 "Failed to initialize depth2rgb point cloud image!");
         }
         /** re-initialize pcl image using rgb image dimensions */
-        m_pclImage = nullptr;
+        m_pcl = nullptr;
         if (K4A_RESULT_SUCCEEDED
             != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, colorWidth,
-                colorHeight, colorWidth * 3 * (int)sizeof(int16_t),
-                &m_pclImage)) {
+                colorHeight, colorWidth * 3 * (int)sizeof(int16_t), &m_pcl)) {
             throw std::runtime_error("Failed to initialize point cloud image "
                                      "using rgb image dimensions!");
         }
         /** transform: depth -> rgb */
         if (K4A_RESULT_SUCCEEDED
             != k4a_transformation_depth_image_to_color_camera(
-                m_transform, m_depthImage, m_depth2rgbImage)) {
+                m_transform, m_depthImg, m_depth2rgbImg)) {
             throw std::runtime_error(
                 "Failed to create depth2rgb point cloud image!");
         }
         /** transform: depth -> point cloud */
         if (K4A_RESULT_SUCCEEDED
             != k4a_transformation_depth_image_to_point_cloud(m_transform,
-                m_depth2rgbImage, K4A_CALIBRATION_TYPE_COLOR, m_pclImage)) {
+                m_depth2rgbImg, K4A_CALIBRATION_TYPE_COLOR, m_pcl)) {
             throw std::runtime_error("Failed to compute point cloud!");
         }
         /** dev option: */
@@ -124,22 +139,34 @@ void Kinect::transform(const int& transformType)
     }
 }
 
-k4a_image_t Kinect::getPclImage()
+k4a_image_t Kinect::getDepthImg()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return m_pclImage;
+    return m_depthImg;
 }
 
-k4a_image_t Kinect::getRgbImage()
+k4a_image_t Kinect::getDepthImgClone()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return m_rgbImageCopy;
+    return m_depthImgClone;
 }
 
-k4a_image_t Kinect::getRgb2DepthImage()
+k4a_image_t Kinect::getPcl()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
-    return m_rgb2depthImage;
+    return m_pcl;
+}
+
+k4a_image_t Kinect::getRgb2DepthImgClone()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return m_rgb2depthImgClone;
+}
+
+k4a_image_t Kinect::getRgb2DepthImg()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    return m_rgb2depthImg;
 }
 
 void Kinect::getFrame(const int& transformType)
@@ -151,25 +178,38 @@ void Kinect::getFrame(const int& transformType)
     transform(transformType);
 }
 
-void Kinect::release() const
+void Kinect::releaseClones()
 {
+    // std::lock_guard<std::mutex> lck(m_mutex);
+
+    if (m_depthImgClone != nullptr) {
+        k4a_image_release(m_depthImgClone);
+    }
+    if (m_rgb2depthImgClone != nullptr) {
+        k4a_image_release(m_rgb2depthImgClone);
+    }
+}
+void Kinect::release()
+{
+    // std::lock_guard<std::mutex> lck(m_mutex);
+
     if (m_capture != nullptr) {
         k4a_capture_release(m_capture);
     }
-    if (m_rgbImage != nullptr) {
-        k4a_image_release(m_rgbImage);
+    if (m_rgbImg != nullptr) {
+        k4a_image_release(m_rgbImg);
     }
-    if (m_depthImage != nullptr) {
-        k4a_image_release(m_depthImage);
+    if (m_depthImg != nullptr) {
+        k4a_image_release(m_depthImg);
     }
-    if (m_pclImage != nullptr) {
-        k4a_image_release(m_pclImage);
+    if (m_pcl != nullptr) {
+        k4a_image_release(m_pcl);
     }
-    if (m_rgb2depthImage != nullptr) {
-        k4a_image_release(m_rgb2depthImage);
+    if (m_rgb2depthImg != nullptr) {
+        k4a_image_release(m_rgb2depthImg);
     }
-    if (m_depth2rgbImage != nullptr) {
-        k4a_image_release(m_depth2rgbImage);
+    if (m_depth2rgbImg != nullptr) {
+        k4a_image_release(m_depth2rgbImg);
     }
 }
 

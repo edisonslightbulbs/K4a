@@ -130,7 +130,7 @@ void ply::write(std::vector<Point>& points)
     std::stringstream ss;
     for (const auto& point : points) {
         ss << point.m_xyz[0] << " " << point.m_xyz[1] << " " << point.m_xyz[2]
-           << point.m_clusterColor << std::endl;
+           << point.m_crgb << std::endl;
     }
     std::ofstream ofs_text(FILE, std::ios::out | std::ios::app);
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());

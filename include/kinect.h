@@ -50,7 +50,7 @@ public:
     std::mutex m_mutex;
 
     /** image resolution */
-    int m_numPoints = 640 * 576;
+    int m_numPts = 640 * 576;
 
     /** device config */
     int32_t m_timeout = 0;
@@ -123,11 +123,8 @@ public:
 
     k4a_image_t getRgb2DepthImg();
 
-
     k4a_image_t getDepthImg();
 
-
     k4a_image_t getPcl();
-
 };
 #endif /* KINECT_H */

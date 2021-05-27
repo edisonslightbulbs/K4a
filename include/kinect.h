@@ -5,12 +5,10 @@
 #include <cfloat>
 #include <k4a/k4a.h>
 #include <mutex>
-#include <shared_mutex>
 
 #include "point.h"
 
-/**
- * @struct DEVICE_CONF
+/** @struct DEVICE_CONF
  *    Single container for all kinect config
  *
  * @b Reference
@@ -22,14 +20,8 @@ struct t_config {
     k4a_device_configuration_t m_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
     t_config()
     {
-        /**  for fast point cloud, use: */
-        // m_config.color_resolution = K4A_COLOR_RESOLUTION_2160P;
-        // m_config.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
-
-        /** option B: for real-time rendering  */
         m_config.color_resolution = K4A_COLOR_RESOLUTION_720P;
-        m_config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-
+        m_config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED; // 640 * 576
         m_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
         m_config.camera_fps = K4A_FRAMES_PER_SECOND_30;
         m_config.synchronized_images_only = true;
@@ -39,92 +31,82 @@ struct t_config {
 extern const int RGB_TO_DEPTH;
 extern const int DEPTH_TO_RGB;
 
-/**
- * @file kinect.h
+/** @file kinect.h
  *    Kinect device.
  */
 class Kinect {
 
 public:
-    /** thread guards */
     std::mutex m_mutex;
 
-    /** image resolution */
-    int m_numPts = 640 * 576;
+    // k4a image resolution
+    int m_numPts = 640 * 756;
 
-    /** device config */
+    // k4a device config
     int32_t m_timeout = 0;
     k4a_device_t m_device;
-
-    /** k4a images */
-    k4a_image_t m_pcl = nullptr;
-    k4a_image_t m_rgbImg = nullptr;
-    k4a_image_t m_depthImg = nullptr;
-    k4a_image_t m_rgb2depthImg = nullptr;
-    k4a_image_t m_depth2rgbImg = nullptr;
-
-    /** k4a capture, calibration, and transformation */
     k4a_capture_t m_capture = nullptr;
     k4a_calibration_t m_calibration {};
     k4a_transformation_t m_transform = nullptr;
 
-    /** output PLY file */
-    // std::string m_file;
+    // k4a images
+    k4a_image_t m_pcl = nullptr;   // point cloud
+    k4a_image_t m_img = nullptr;   // color image
+    k4a_image_t m_c2d = nullptr;   // color to depth image
+    k4a_image_t m_d2c = nullptr;   // depth to color image
+    k4a_image_t m_xyT = nullptr;   // xy table
+    k4a_image_t m_xyPcl = nullptr; // point cloud from xy table
+    k4a_image_t m_depth = nullptr; // depth image
 
-    /**
-     * capture
-     *   Capture depth and color images.
+    /** capture
+     *   Captures images using k4a device.
      */
     void capture();
 
-    /**
-     * transform
-     *   Calibrates point cloud image resolution.
+    /** transform
+     *   Carries out requested transformation.
      *
-     * @param sptr_points
-     *   "Safe global" share pointer to point cloud points.
+     * @param transformFlag
+     *   Flag for transformation types, i.e.,
+     *   RGB_TO_DEPTH & DEPTH_TO_RGB
      */
-    void transform(const int& transformType);
+    void transform(const int& transformFlag);
 
     /**
-     * record
-     *   Records a frame using the kinect.
+     * xyLookupTable
+     *   Pre-computes a lookup table by storing x and y depth
+     *   scale factors for every pixel.
      *
-     *  @param transformType
-     *    Specification of transformation type:
-     *      option 1: RGB_TO_DEPTH
-     *      option 2: DEPTH_TO_RGB
+     * @param ptr_calibration
+     *   Calibration for the kinect device in question.
+     *
+     * @param depthImg
+     *   Depth map captured by the kinect device.
      */
-    void getFrame(const int& transformType);
+    static void xyLookupTable(
+        const k4a_calibration_t* ptr_calibration, k4a_image_t depthImg);
 
-    /**
-     * close
-     *   Closes connection to kinect.
+    /** close
+     *   Closes k4a device.
      */
     void close() const;
 
-    /**
-     * release
-     *   Releases kinect resources.
-     */
-    void release();
+    /* for releasing device resources */
+    void releaseK4aImages() const;
+    void releaseK4aCapture();
+    void releaseK4aTransform();
 
-    /**
-     * Kinect
-     *   Initialize kinect device.
-     */
+    void xyTable();
+
     Kinect();
-
-    /**
-     * Kinect
-     *   Destroy kinect object
-     */
     ~Kinect();
 
-    k4a_image_t getRgb2DepthImg();
+    void depthCapture();
 
-    k4a_image_t getDepthImg();
+    void imgCapture();
 
-    k4a_image_t getPcl();
+    void pclCapture();
+
+    void c2dCapture();
 };
 #endif /* KINECT_H */

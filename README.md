@@ -1,5 +1,10 @@
-#ifndef KINECT_H
-#define KINECT_H
+### :mortar_board: :mortar_board: :mortar_board: :mortar_board:
+
+#### a helper class for working with the k4a kinect
+
+*   the interface
+
+```cpp
 
 #include <k4a/k4a.h>
 #include <mutex>
@@ -93,9 +98,45 @@ public:
     void pclCapture();
     void c2dCapture();
     void depthCapture();
-
+    
     Kinect();
     ~Kinect();
 
 };
-#endif /* KINECT_H */
+
+```
+
+*   usage example
+
+```cpp
+
+#include "kinect.h"  // <- include header
+
+int main(int argc, char* argv[])
+{
+
+   Kinect kinect();
+    
+   kinect.capture();
+   kinect.depthCapture();
+   kinect.pclCapture();
+   kinect.imgCapture();
+   kinect.c2dCapture();
+   kinect.transform(RGB_TO_DEPTH);
+
+   auto* ptr_k4aImgData = k4a_image_get_buffer(kinect.m_c2d);
+   auto* ptr_k4aPCloudData = (int16_t*)(void*)k4a_image_get_buffer(kinect.m_pcl);
+   auto* ptr_k4aDepthData = (uint16_t*)(void*)k4a_image_get_buffer(kinect.m_depth);
+   auto* ptr_k4aTableData = (k4a_float2_t*)(void*)k4a_image_get_buffer(kinect.m_xyT);
+
+   // ------> do stuff data <-----
+
+   // ------> do stuff data <-----
+
+   kinect.releaseK4aImages();
+   kinect.releaseK4aCapture();
+   return 0;
+}
+    
+```
+

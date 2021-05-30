@@ -190,14 +190,14 @@ void Kinect::releaseK4aImages() const
     // }
 }
 
-void Kinect::releaseK4aCapture()
+void Kinect::releaseK4aCapture() const
 {
     if (m_capture != nullptr) {
         k4a_capture_release(m_capture);
     }
 }
 
-void Kinect::releaseK4aTransform()
+__attribute__((unused))  void Kinect::releaseK4aTransform()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     if (m_transform != nullptr) {
@@ -249,8 +249,5 @@ Kinect::Kinect()
     // retrieve transform
     m_transform = k4a_transformation_create(&m_calibration);
 
-    // get fast point cloud */
     xyTable();
-
-    // capture();
 }

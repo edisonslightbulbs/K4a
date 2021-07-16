@@ -4,8 +4,6 @@
 #include <k4a/k4a.h>
 #include <mutex>
 
-#include "point.h"
-
 /** @struct t_config
  *    Single container for all kinect config
  *

@@ -1,8 +1,6 @@
-### :mortar_board: :mortar_board: :mortar_board: :mortar_board:
+###### Helper class for working with Microsoft's K4a (kinect)
 
-#### a helper class for working with the k4a kinect
-
-*   the interface
+*   interface:
 
 ```cpp
 
@@ -12,7 +10,7 @@
 #include "point.h"
 
 /** @struct t_config
- *    Single container for all kinect config
+ *    Kinect config
  *
  * @b Reference
  *    https://docs.microsoft.com/en-us/azure/kinect-dk/hardware-specification#depth-camera-supported-operating-modes
@@ -98,7 +96,7 @@ public:
     void pclCapture();
     void c2dCapture();
     void depthCapture();
-    
+
     Kinect();
     ~Kinect();
 
@@ -106,7 +104,7 @@ public:
 
 ```
 
-*   usage example
+*   usage:
 
 ```cpp
 
@@ -116,7 +114,7 @@ int main(int argc, char* argv[])
 {
 
    Kinect kinect();
-    
+
    kinect.capture();
    kinect.depthCapture();
    kinect.pclCapture();
@@ -137,6 +135,5 @@ int main(int argc, char* argv[])
    kinect.releaseK4aCapture();
    return 0;
 }
-    
-```
 
+```

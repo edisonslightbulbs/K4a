@@ -1,6 +1,7 @@
 #ifndef KINECT_H
 #define KINECT_H
 
+#if __linux__
 #include <k4a/k4a.h>
 #include <mutex>
 
@@ -94,6 +95,6 @@ public:
 
     Kinect();
     ~Kinect();
-
 };
+#endif
 #endif /* KINECT_H */

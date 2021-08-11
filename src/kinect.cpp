@@ -1,5 +1,6 @@
 #include <cmath>
 
+#if __linux__
 #include "kinect.h"
 #include "logger.h"
 
@@ -197,7 +198,7 @@ void Kinect::releaseK4aCapture() const
     }
 }
 
-__attribute__((unused))  void Kinect::releaseK4aTransform()
+__attribute__((unused)) void Kinect::releaseK4aTransform()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     if (m_transform != nullptr) {
@@ -251,3 +252,4 @@ Kinect::Kinect()
 
     xyTable();
 }
+#endif

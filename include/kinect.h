@@ -31,7 +31,7 @@ extern const int DEPTH_TO_RGB;
 /** @file kinect.h
  *    Kinect device.
  */
-class Kinect {
+class kinect {
 
 public:
     std::mutex m_mutex;
@@ -93,8 +93,8 @@ public:
     void c2dCapture();
     void depthCapture();
 
-    Kinect();
-    ~Kinect();
+    kinect();
+    ~kinect();
 };
 #endif
 #endif /* KINECT_H */

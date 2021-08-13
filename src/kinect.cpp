@@ -7,7 +7,7 @@
 extern const int RGB_TO_DEPTH = 1;
 extern const int DEPTH_TO_RGB = 2;
 
-void Kinect::capture()
+void kinect::capture()
 {
     switch (k4a_device_get_capture(m_device, &m_capture, m_timeout)) {
     case K4A_WAIT_RESULT_SUCCEEDED:
@@ -19,7 +19,7 @@ void Kinect::capture()
     }
 }
 
-void Kinect::depthCapture()
+void kinect::depthCapture()
 {
     m_depth = k4a_capture_get_depth_image(m_capture);
     if (m_depth == nullptr) {
@@ -27,7 +27,7 @@ void Kinect::depthCapture()
     }
 }
 
-void Kinect::imgCapture()
+void kinect::imgCapture()
 {
     m_img = k4a_capture_get_color_image(m_capture);
     if (m_img == nullptr) {
@@ -35,7 +35,7 @@ void Kinect::imgCapture()
     }
 }
 
-void Kinect::pclCapture()
+void kinect::pclCapture()
 {
     int depthWidth = k4a_image_get_width_pixels(m_depth);
     int depthHeight = k4a_image_get_height_pixels(m_depth);
@@ -48,7 +48,7 @@ void Kinect::pclCapture()
     }
 }
 
-void Kinect::c2dCapture()
+void kinect::c2dCapture()
 {
     int depthWidth = k4a_image_get_width_pixels(m_depth);
     int depthHeight = k4a_image_get_height_pixels(m_depth);
@@ -61,7 +61,7 @@ void Kinect::c2dCapture()
     }
 }
 
-void Kinect::transform(const int& transformFlag)
+void kinect::transform(const int& transformFlag)
 {
     if (K4A_RESULT_SUCCEEDED
         != k4a_transformation_depth_image_to_point_cloud(
@@ -116,7 +116,7 @@ void Kinect::transform(const int& transformFlag)
     }
 }
 
-void Kinect::xyLookupTable(
+void kinect::xyLookupTable(
     const k4a_calibration_t* ptr_calibration, k4a_image_t depthImg)
 {
     auto* xyTable = (k4a_float2_t*)(void*)k4a_image_get_buffer(depthImg);
@@ -149,7 +149,7 @@ void Kinect::xyLookupTable(
     }
 }
 
-void Kinect::xyTable()
+void kinect::xyTable()
 {
 
     k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
@@ -169,7 +169,7 @@ void Kinect::xyTable()
         &m_xyPcl);
 }
 
-void Kinect::releaseK4aImages() const
+void kinect::releaseK4aImages() const
 {
     if (m_img != nullptr) {
         k4a_image_release(m_img);
@@ -191,14 +191,14 @@ void Kinect::releaseK4aImages() const
     // }
 }
 
-void Kinect::releaseK4aCapture() const
+void kinect::releaseK4aCapture() const
 {
     if (m_capture != nullptr) {
         k4a_capture_release(m_capture);
     }
 }
 
-__attribute__((unused)) void Kinect::releaseK4aTransform()
+__attribute__((unused)) void kinect::releaseK4aTransform()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     if (m_transform != nullptr) {
@@ -206,16 +206,16 @@ __attribute__((unused)) void Kinect::releaseK4aTransform()
     }
 }
 
-void Kinect::close() const
+void kinect::close() const
 {
     if (m_device != nullptr) {
         k4a_device_close(m_device);
     }
 }
 
-Kinect::~Kinect() { close(); }
+kinect::~kinect() { close(); }
 
-Kinect::Kinect()
+kinect::kinect()
 {
     // setup device config
     t_config deviceConf;
